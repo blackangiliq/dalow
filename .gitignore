@@ -28,3 +28,5 @@ Thumbs.db
 
 /public/uploads/products/*
 !/public/uploads/products/.gitkeep
+
+/storage/logs/madelineproto.log

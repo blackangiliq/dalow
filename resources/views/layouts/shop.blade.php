@@ -7,17 +7,26 @@
     <title>@hasSection('title')@yield('title') | @endif{{ $site['name'] }}</title>
     <meta name="description" content="@yield('description', $site['name'].' في '.$site['address'].'. اطلب الأدوية والمستلزمات الطبية أونلاين مع توصيل لكل مناطق بغداد والدفع عند الاستلام.')">
     <meta name="theme-color" content="#0b2545">
+    <meta property="og:site_name" content="{{ $site['name'] }}">
+    <meta property="og:title" content="@hasSection('title')@yield('title') | @endif{{ $site['name'] }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:locale" content="ar_IQ">
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/shop.css') }}?v={{ filemtime(public_path('css/shop.css')) }}">
 </head>
-<body>
+<body data-capsules="{{ $site['capsules'] ? 1 : 0 }}" class="@yield('bodyClass')">
 <div class="topbar">
     <div class="wrap">
         <span>@icon('pin') {{ $site['address'] }}</span>
         <span class="hide-s">@icon('clock') {{ $site['hours'] }}</span>
+        <nav aria-label="روابط المساعدة">
+            <a href="{{ route('faq') }}">الأسئلة الشائعة</a>
+            <a href="{{ route('contact') }}">تواصل معنا</a>
+        </nav>
         <a class="push" href="tel:{{ $site['phone'] }}">@icon('phone') <span class="num">{{ $site['phone'] }}</span></a>
     </div>
 </div>
@@ -73,6 +82,16 @@
             <p>صيدلية الحي في زيونة. نجهز طلبك بيد صيدلاني مختص ونوصله إلى باب بيتك في كل مناطق بغداد.</p>
         </div>
         <div>
+            <h3>مساعدة</h3>
+            <ul>
+                <li><a href="{{ route('faq') }}">الأسئلة الشائعة</a></li>
+                <li><a href="{{ route('contact') }}">تواصل معنا</a></li>
+                <li><a href="{{ route('track') }}">تتبع طلبك</a></li>
+                <li><a href="{{ route('prescription') }}">اطلب بوصفة طبية</a></li>
+                <li><a href="{{ $consultUrl }}" target="_blank" rel="noopener">استشر {{ $site['pharmacist_label'] }}</a></li>
+            </ul>
+        </div>
+        <div>
             <h3>تسوق</h3>
             <ul>
                 @foreach ($navCategories->take(5) as $c)
@@ -86,7 +105,6 @@
                 <li>{{ $site['address'] }}</li>
                 <li>{{ $site['hours'] }}</li>
                 <li><a class="num" href="tel:{{ $site['phone'] }}">{{ $site['phone'] }}</a></li>
-                <li><a href="{{ route('track') }}">تتبع طلبك</a></li>
             </ul>
         </div>
         <div class="foot__note">
@@ -96,9 +114,15 @@
     </div>
 </footer>
 
-@if ($site['whatsapp'])
-<a class="wa-float" href="https://wa.me/{{ preg_replace('/\D/', '', $site['whatsapp']) }}" target="_blank" rel="noopener" aria-label="راسلنا على واتساب">@icon('whatsapp')</a>
-@endif
+<a class="consult-float" href="{{ $consultUrl }}" target="_blank" rel="noopener">@icon('whatsapp') استشر {{ $site['pharmacist_label'] }}</a>
+
+<nav class="tabbar" aria-label="التنقل السريع">
+    <a href="{{ route('home') }}" @class(['on' => request()->routeIs('home')])>@icon('home') الرئيسية</a>
+    <a href="{{ route('products') }}" @class(['on' => request()->routeIs('products', 'category', 'product')])>@icon('pill') المنتجات</a>
+    <a href="{{ route('prescription') }}" @class(['on' => request()->routeIs('prescription')])>@icon('upload') وصفة</a>
+    <a class="wa" href="{{ $consultUrl }}" target="_blank" rel="noopener">@icon('whatsapp') استشارة</a>
+    <a href="{{ route('cart') }}" @class(['on' => request()->routeIs('cart', 'checkout')])>@icon('cart') السلة <b class="num" data-cart-count @if (! $cartCount) hidden @endif>{{ $cartCount }}</b></a>
+</nav>
 
 <div class="toast @if(session('error')) bad @endif" role="status" aria-live="polite" data-toast data-cart-url="{{ route('cart') }}"
      @if(session('ok') || session('error')) data-initial="{{ session('ok') ?? session('error') }}" @endif></div>

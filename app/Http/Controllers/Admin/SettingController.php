@@ -4,69 +4,54 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
-use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class SettingController extends Controller
 {
-    private const KEYS = ['name', 'address', 'phone', 'whatsapp', 'hours', 'map_url', 'free_delivery_over', 'delivery_areas', 'telegram_group_chat_id'];
+    private const KEYS = [
+        'name', 'address', 'phone', 'hours', 'map_url', 'email', 'facebook_url', 'instagram_url',
+        'whatsapp', 'whatsapp_pharmacist', 'pharmacist_label',
+        'free_delivery_over', 'delivery_areas', 'capsules',
+    ];
 
-    public function edit(TelegramService $telegram)
+    public function edit()
     {
-        $hook = $telegram->configured() ? $telegram->call('getWebhookInfo') : null;
-
-        return view('admin.settings', [
-            'values' => collect(self::KEYS)->mapWithKeys(fn ($k) => [$k => Setting::get($k)]),
-            'hasToken' => $telegram->configured(),
-            'webhookUrl' => $hook['result']['url'] ?? '',
-        ]);
+        return view('admin.settings', ['values' => collect(self::KEYS)->mapWithKeys(fn ($k) => [$k => Setting::get($k)])]);
     }
 
     public function update(Request $request)
     {
+        $wa = ['nullable', 'regex:/^\+?[\d\s-]{10,20}$/'];
         $data = $request->validate([
             'name' => 'required|string|max:80',
             'address' => 'required|string|max:160',
             'phone' => 'required|string|max:20',
-            'whatsapp' => 'nullable|string|max:20',
             'hours' => 'nullable|string|max:160',
             'map_url' => 'nullable|url|max:500',
+            'email' => 'nullable|email|max:120',
+            'facebook_url' => 'nullable|url|max:300',
+            'instagram_url' => 'nullable|url|max:300',
+            'whatsapp' => $wa,
+            'whatsapp_pharmacist' => $wa,
+            'pharmacist_label' => 'required|string|max:40',
             'free_delivery_over' => 'nullable|integer|min:0',
             'delivery_areas' => 'required|string|max:5000',
-            'telegram_group_chat_id' => ['nullable', 'regex:/^-?\d{3,20}$/'],
-            'telegram_bot_token' => ['nullable', 'regex:/^\d+:[\w-]{30,}$/'],
         ], [
-            'telegram_bot_token.regex' => 'صيغة التوكن غير صحيحة. انسخه كما هو من BotFather.',
-            'telegram_group_chat_id.regex' => 'معرف المجموعة يتكون من أرقام (ويبدأ غالباً بإشارة سالب)',
-        ]);
+            'whatsapp.regex' => 'رقم واتساب الطلبات غير صحيح. مثال: 9647701234567',
+            'whatsapp_pharmacist.regex' => 'رقم واتساب الصيدلانية غير صحيح. مثال: 9647701234567',
+        ], ['pharmacist_label' => 'اسم قسم الاستشارة']);
 
+        $data['capsules'] = $request->boolean('capsules') ? '1' : '0';
         foreach (self::KEYS as $key) {
             Setting::put($key, isset($data[$key]) ? (string) $data[$key] : null);
         }
-        // التوكن لا يُعرض في الصفحة، لذلك لا نغيّره إلا إذا كُتب توكن جديد
-        if (! empty($data['telegram_bot_token'])) {
-            Setting::put('telegram_bot_token', $data['telegram_bot_token']);
+        // الحقل الفارغ يعني «معطّل» هنا، وليس الرجوع للقيمة الافتراضية
+        if (($data['free_delivery_over'] ?? null) === null) {
+            Setting::put('free_delivery_over', '0');
         }
 
         return back()->with('ok', 'حُفظت الإعدادات');
-    }
-
-    public function webhook(Request $request, TelegramService $telegram)
-    {
-        if ($request->input('action') === 'remove') {
-            $res = $telegram->call('deleteWebhook', ['drop_pending_updates' => false]);
-            $done = 'أُلغي الربط التلقائي. استخدم زر المزامنة في صفحة الموظفين.';
-        } else {
-            $url = route('telegram.webhook', TelegramService::webhookSecret());
-            if (! str_starts_with($url, 'https://')) {
-                return back()->with('error', 'الربط التلقائي يحتاج موقعاً يعمل على https. عدّل APP_URL في ملف .env بعد رفع الموقع.');
-            }
-            $res = $telegram->call('setWebhook', ['url' => $url, 'allowed_updates' => ['message', 'callback_query']]);
-            $done = 'تم تفعيل الربط التلقائي مع تيليجرام';
-        }
-
-        return ($res['ok'] ?? false) ? back()->with('ok', $done) : back()->with('error', 'تيليجرام: '.($res['description'] ?? 'خطأ'));
     }
 
     public function password(Request $request)

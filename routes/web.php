@@ -3,8 +3,8 @@
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\PageController;
 use App\Http\Controllers\ShopController;
-use App\Http\Controllers\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // ---------- واجهة الزبائن ----------
@@ -25,7 +25,10 @@ Route::post('/prescription', [CheckoutController::class, 'prescriptionStore'])->
 Route::get('/order/{number}/done', [CheckoutController::class, 'done'])->name('order.done');
 Route::get('/track', [CheckoutController::class, 'track'])->name('track')->middleware('throttle:track');
 
-Route::post('/telegram/webhook/{secret}', TelegramWebhookController::class)->name('telegram.webhook');
+Route::get('/faq', [PageController::class, 'faq'])->name('faq');
+Route::get('/contact', [PageController::class, 'contact'])->name('contact');
+Route::post('/contact', [PageController::class, 'contactStore'])->name('contact.store')->middleware('throttle:contact');
+Route::get('/sitemap.xml', [PageController::class, 'sitemap'])->name('sitemap');
 
 // ---------- لوحة التحكم ----------
 Route::get('/admin/login', [Admin\AuthController::class, 'form'])->name('login');
@@ -34,6 +37,7 @@ Route::post('/admin/login', [Admin\AuthController::class, 'login'])->middleware(
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/logout', [Admin\AuthController::class, 'logout'])->name('logout');
     Route::get('/', Admin\DashboardController::class)->name('dashboard');
+    Route::get('/pulse', [Admin\DashboardController::class, 'pulse'])->name('pulse');
 
     Route::post('/products/bulk', [Admin\ProductController::class, 'bulk'])->name('products.bulk');
     Route::resource('products', Admin\ProductController::class)->except('show');
@@ -44,13 +48,15 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/categories/{id}', [Admin\CategoryController::class, 'destroy'])->name('categories.destroy');
 
     Route::get('/orders', [Admin\OrderController::class, 'index'])->name('orders.index');
+    Route::get('/orders/export', [Admin\OrderController::class, 'export'])->name('orders.export');
     Route::get('/orders/{order}', [Admin\OrderController::class, 'show'])->name('orders.show');
     Route::put('/orders/{order}', [Admin\OrderController::class, 'update'])->name('orders.update');
+    Route::get('/orders/{order}/invoice', [Admin\OrderController::class, 'invoice'])->name('orders.invoice');
     Route::get('/orders/{order}/prescription', [Admin\OrderController::class, 'prescription'])->name('orders.prescription');
 
     Route::get('/staff', [Admin\StaffController::class, 'index'])->name('staff.index');
     Route::post('/staff', [Admin\StaffController::class, 'store'])->name('staff.store');
-    Route::post('/staff/sync', [Admin\StaffController::class, 'sync'])->name('staff.sync');
+    Route::post('/staff/import', [Admin\StaffController::class, 'import'])->name('staff.import');
     Route::put('/staff/{staff}', [Admin\StaffController::class, 'update'])->name('staff.update');
     Route::delete('/staff/{staff}', [Admin\StaffController::class, 'destroy'])->name('staff.destroy');
     Route::post('/staff/{staff}/test', [Admin\StaffController::class, 'test'])->name('staff.test');
@@ -61,8 +67,25 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/import/run', [Admin\ImportController::class, 'run'])->name('import.run');
     Route::get('/import/template', [Admin\ImportController::class, 'template'])->name('import.template');
 
+    Route::get('/telegram', [Admin\TelegramController::class, 'index'])->name('telegram');
+    Route::put('/telegram/credentials', [Admin\TelegramController::class, 'credentials'])->name('telegram.credentials');
+    Route::post('/telegram/link', [Admin\TelegramController::class, 'link'])->name('telegram.link');
+    Route::post('/telegram/code', [Admin\TelegramController::class, 'verifyCode'])->name('telegram.code');
+    Route::post('/telegram/password', [Admin\TelegramController::class, 'verifyPassword'])->name('telegram.password');
+    Route::post('/telegram/cancel', [Admin\TelegramController::class, 'cancel'])->name('telegram.cancel');
+    Route::post('/telegram/test', [Admin\TelegramController::class, 'test'])->name('telegram.test');
+    Route::delete('/telegram', [Admin\TelegramController::class, 'unlink'])->name('telegram.unlink');
+
+    Route::get('/faqs', [Admin\FaqController::class, 'index'])->name('faqs.index');
+    Route::post('/faqs', [Admin\FaqController::class, 'store'])->name('faqs.store');
+    Route::put('/faqs/{faq}', [Admin\FaqController::class, 'update'])->name('faqs.update');
+    Route::delete('/faqs/{faq}', [Admin\FaqController::class, 'destroy'])->name('faqs.destroy');
+
+    Route::get('/messages', [Admin\MessageController::class, 'index'])->name('messages.index');
+    Route::put('/messages/{message}', [Admin\MessageController::class, 'toggle'])->name('messages.toggle');
+    Route::delete('/messages/{message}', [Admin\MessageController::class, 'destroy'])->name('messages.destroy');
+
     Route::get('/settings', [Admin\SettingController::class, 'edit'])->name('settings');
     Route::put('/settings', [Admin\SettingController::class, 'update'])->name('settings.update');
-    Route::post('/settings/webhook', [Admin\SettingController::class, 'webhook'])->name('settings.webhook');
     Route::put('/settings/password', [Admin\SettingController::class, 'password'])->name('settings.password');
 });

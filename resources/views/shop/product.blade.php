@@ -1,5 +1,6 @@
 @extends('layouts.shop')
 @section('title', $product->name)
+@section('bodyClass', $product->stock > 0 ? 'has-buybar' : '')
 @section('description', \Illuminate\Support\Str::limit($product->name.' '.$product->scientific_name.'. '.$product->description, 150))
 
 @section('content')
@@ -40,8 +41,11 @@
                 <b>@iqd($product->price)</b>
             </div>
 
+            @php
+                $waOrder = \App\Support\Util::wa($site['whatsapp'], "مرحباً، أريد طلب هذا المنتج من موقع {$site['name']}:\n{$product->name}\n".route('product', $product)."\nالكمية: 1");
+            @endphp
             @if ($product->stock > 0)
-                <form class="buy js-add" method="post" action="{{ route('cart.add') }}">
+                <form class="buy js-add" method="post" action="{{ route('cart.add') }}" id="buyform">
                     @csrf
                     <input type="hidden" name="product_id" value="{{ $product->id }}">
                     <div class="qty">
@@ -50,13 +54,19 @@
                         <button type="button" data-step="-1" aria-label="إنقاص الكمية">−</button>
                     </div>
                     <button class="btn">@icon('cart') أضف للسلة</button>
+                    @if ($site['whatsapp'])
+                        <a class="btn btn--wa-line" href="{{ $waOrder }}" target="_blank" rel="noopener">@icon('whatsapp') اطلب عبر واتساب</a>
+                    @endif
                 </form>
             @else
-                <div class="buy">
-                    <a class="btn btn--wa" target="_blank" rel="noopener"
-                       href="https://wa.me/{{ preg_replace('/\D/', '', $site['whatsapp']) }}?text={{ rawurlencode('مرحباً، أريد السؤال عن توفر: '.$product->name) }}">@icon('whatsapp') اسأل عن موعد توفره</a>
-                </div>
+                <div class="note note--bad">@icon('alert') <p>هذا المنتج غير متوفر حالياً. اسأل {{ $site['pharmacist_label'] }} عن موعد توفره أو عن بديل مناسب.</p></div>
             @endif
+
+            <div class="ask">
+                <span class="ask__ico">@icon('whatsapp')</span>
+                <div><b>عندك سؤال عن هذا المنتج؟</b><span>الجرعة، طريقة الاستعمال، أو البديل المناسب. الاستشارة مجانية.</span></div>
+                <a class="btn btn--wa" href="{{ \App\Support\Util::consultLink($product) }}" target="_blank" rel="noopener">استشر {{ $site['pharmacist_label'] }}</a>
+            </div>
 
             @if ($product->requires_prescription)
                 <div class="note">@icon('alert') <p><strong>هذا الدواء يصرف بوصفة طبية.</strong> سنطلب منك إرفاق صورة الوصفة عند إتمام الطلب.</p></div>
@@ -68,6 +78,13 @@
         </div>
     </div>
 </div>
+
+@if ($product->stock > 0)
+<div class="buybar">
+    <div class="price"><b>@iqd($product->price)</b></div>
+    <button class="btn" form="buyform">@icon('cart') أضف للسلة</button>
+</div>
+@endif
 
 @if ($alternatives->count())
 <section class="band">

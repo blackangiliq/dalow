@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Product;
-use App\Services\TelegramService;
+use App\Services\StaffNotifier;
 use App\Support\Cart;
 use App\Support\Util;
 use Illuminate\Http\Request;
@@ -29,7 +29,7 @@ class CheckoutController extends Controller
         ]);
     }
 
-    public function store(Request $request, TelegramService $telegram)
+    public function store(Request $request, StaffNotifier $notifier)
     {
         $items = Cart::items();
         if ($items->isEmpty()) {
@@ -66,7 +66,8 @@ class CheckoutController extends Controller
         });
 
         Cart::clear();
-        $telegram->notifyOrder($order);
+        // الإشعار يُرسل بعد إظهار صفحة التأكيد للزبون حتى لا ينتظر تيليجرام
+        defer(fn () => $notifier->orderPlaced($order));
         session()->push('my_orders', $order->number);
 
         return redirect()->route('order.done', $order->number);
@@ -77,7 +78,7 @@ class CheckoutController extends Controller
         return view('shop.prescription', ['areas' => Util::areas()]);
     }
 
-    public function prescriptionStore(Request $request, TelegramService $telegram)
+    public function prescriptionStore(Request $request, StaffNotifier $notifier)
     {
         $data = $this->validateCustomer($request, true);
         $order = Order::create($data + [
@@ -85,7 +86,8 @@ class CheckoutController extends Controller
             'type' => 'prescription',
             'prescription_image' => $request->file('prescription')->store('prescriptions', 'local'),
         ]);
-        $telegram->notifyOrder($order);
+        // الإشعار يُرسل بعد إظهار صفحة التأكيد للزبون حتى لا ينتظر تيليجرام
+        defer(fn () => $notifier->orderPlaced($order));
         session()->push('my_orders', $order->number);
 
         return redirect()->route('order.done', $order->number);

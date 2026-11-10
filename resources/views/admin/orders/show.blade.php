@@ -7,7 +7,10 @@
         <h1>الطلب <span class="num">{{ $order->number }}</span> <span class="pill pill--{{ $order->status }}">{{ $order->status_label }}</span></h1>
         <p><span class="num">{{ $order->created_at->format('Y-m-d H:i') }}</span> ({{ $order->created_at->diffForHumans() }}) @if ($order->handled_by) · آخر تعديل بواسطة {{ $order->handled_by }} @endif</p>
     </div>
-    <a class="btn btn--ghost" href="{{ route('admin.orders.index') }}">كل الطلبات</a>
+    <div class="head__actions">
+        <a class="btn btn--ghost" href="{{ route('admin.orders.invoice', $order) }}" target="_blank" rel="noopener">@icon('sheet') طباعة الفاتورة</a>
+        <a class="btn btn--ghost" href="{{ route('admin.orders.index') }}">كل الطلبات</a>
+    </div>
 </div>
 
 <div class="cols">
@@ -54,7 +57,7 @@
             </dl>
             <div class="inline" style="margin-top:16px">
                 <a class="btn btn--ghost btn--sm" href="tel:{{ $order->phone }}">@icon('phone') اتصال</a>
-                <a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="https://wa.me/964{{ substr($order->phone, 1) }}?text={{ rawurlencode('مرحباً '.$order->customer_name.'، معك صيدلية الدلو بخصوص طلبك رقم '.$order->number) }}">@icon('whatsapp') واتساب</a>
+                <a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="{{ \App\Support\Util::wa($order->phone, 'مرحباً '.$order->customer_name.'، معك صيدلية الدلو بخصوص طلبك رقم '.$order->number) }}">@icon('whatsapp') واتساب</a>
             </div>
         </div>
 

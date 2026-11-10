@@ -33,7 +33,7 @@
         <div>@icon('truck') <span>توصيل لكل بغداد<small>زيونة خلال ساعة تقريباً</small></span></div>
         <div>@icon('cash') <span>الدفع عند الاستلام<small>نقداً للمندوب</small></span></div>
         <div>@icon('shield') <span>أدوية أصلية<small>من مذاخر ووكلاء معتمدين</small></span></div>
-        <div>@icon('chat') <span>صيدلاني يجاوبك<small>استشارة مجانية بالهاتف أو واتساب</small></span></div>
+        <div>@icon('chat') <span>{{ $site['pharmacist_label'] }} تجاوبك<small>استشارة مجانية على واتساب</small></span></div>
     </div>
 </section>
 
@@ -100,7 +100,23 @@
 </section>
 @endif
 
-<section class="band" id="visit">
+@if ($faqs->count())
+<section class="band">
+    <div class="wrap">
+        <div class="band__head">
+            <h2>أسئلة يسألها زبائننا</h2>
+            <a class="more" href="{{ route('faq') }}">كل الأسئلة</a>
+        </div>
+        <div class="faq">
+            @foreach ($faqs as $f)
+                <details><summary>{{ $f->question }}</summary><p>{{ $f->answer }}</p></details>
+            @endforeach
+        </div>
+    </div>
+</section>
+@endif
+
+<section class="band band--mist" id="visit">
     <div class="wrap">
         <div class="place">
             <div>
@@ -108,9 +124,7 @@
                 <p>قياس الضغط والسكر مجاناً داخل الصيدلية، واستشارة الصيدلاني متاحة طوال الدوام.</p>
                 <div class="place__btns">
                     <a class="btn btn--sun" href="tel:{{ $site['phone'] }}">@icon('phone') اتصل بنا</a>
-                    @if ($site['whatsapp'])
-                        <a class="btn btn--wa" href="https://wa.me/{{ preg_replace('/\D/', '', $site['whatsapp']) }}" target="_blank" rel="noopener">@icon('whatsapp') واتساب</a>
-                    @endif
+                    <a class="btn btn--wa" href="{{ $consultUrl }}" target="_blank" rel="noopener">@icon('whatsapp') استشر {{ $site['pharmacist_label'] }}</a>
                     @if ($site['map_url'])
                         <a class="btn btn--ghost" href="{{ $site['map_url'] }}" target="_blank" rel="noopener">@icon('map') الموقع على الخريطة</a>
                     @endif

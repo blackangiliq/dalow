@@ -12,8 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // تيليجرام يرسل التحديثات بدون رمز CSRF، والرابط محمي بمفتاح سري
-        $middleware->validateCsrfTokens(except: ['telegram/webhook/*']);
+        //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

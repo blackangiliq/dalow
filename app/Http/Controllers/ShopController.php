@@ -13,6 +13,7 @@ class ShopController extends Controller
         return view('shop.home', [
             'offers' => Product::active()->with('category')->whereNotNull('old_price')->whereColumn('old_price', '>', 'price')
                 ->where('stock', '>', 0)->orderByRaw('(old_price - price) * 1.0 / old_price desc')->take(8)->get(),
+            'faqs' => \App\Models\Faq::where('is_active', true)->orderBy('sort')->take(4)->get(),
             'featured' => Product::active()->with('category')->where('is_featured', true)->where('stock', '>', 0)->orderBy('id')->take(8)->get(),
         ]);
     }

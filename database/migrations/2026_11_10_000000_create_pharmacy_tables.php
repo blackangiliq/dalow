@@ -71,7 +71,10 @@ return new class extends Migration
             $table->string('name');
             $table->string('phone')->unique();
             $table->string('role')->nullable();
-            $table->string('telegram_chat_id')->nullable();
+            // تُملأ تلقائياً عند أول إرسال من حساب تيليجرام المرتبط
+            $table->string('telegram_user_id')->nullable();
+            $table->string('telegram_name')->nullable();
+            $table->string('telegram_error')->nullable();
             $table->boolean('notify')->default(true);
             $table->timestamps();
         });

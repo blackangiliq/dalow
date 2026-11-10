@@ -2,7 +2,10 @@
 @section('title', 'الطلبات')
 
 @section('content')
-<div class="head"><div><h1>الطلبات</h1></div></div>
+<div class="head">
+    <div><h1>الطلبات</h1></div>
+    <a class="btn btn--ghost" href="{{ route('admin.orders.export', request()->only('status')) }}">@icon('sheet') تصدير إلى Excel</a>
+</div>
 
 <div class="tabs">
     <a href="{{ route('admin.orders.index') }}" @class(['on' => ! request('status')])>الكل</a>

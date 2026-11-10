@@ -6,6 +6,14 @@ return [
     'address' => 'بغداد، زيونة، محلة 712',
     'phone' => '07700000712',
     'whatsapp' => '9647700000712',
+    // واتساب استشارة الصيدلانية (إن تُرك فارغاً يُستخدم رقم واتساب الطلبات)
+    'whatsapp_pharmacist' => '',
+    'pharmacist_label' => 'الصيدلانية',
+    'email' => '',
+    'facebook_url' => '',
+    'instagram_url' => '',
+    // تأثير تناثر الكبسولات عند النقر (1 مفعّل، 0 معطّل)
+    'capsules' => '1',
     'hours' => 'يومياً من 9 صباحاً إلى 12 منتصف الليل',
     'map_url' => 'https://www.google.com/maps/search/?api=1&query=صيدلية+الدلو+زيونة+بغداد',
     'free_delivery_over' => '50000',
@@ -26,6 +34,7 @@ return [
         'الدورة|5000',
         'مناطق بغداد الأخرى|5000',
     ]),
-    'telegram_bot_token' => env('TELEGRAM_BOT_TOKEN', ''),
-    'telegram_group_chat_id' => env('TELEGRAM_GROUP_CHAT_ID', ''),
+    // حساب تيليجرام الذي يرسل إشعارات الطلبات (يُضبط من لوحة التحكم: إشعارات تيليجرام)
+    'tg_api_id' => env('TELEGRAM_API_ID', ''),
+    'tg_api_hash' => env('TELEGRAM_API_HASH', ''),
 ];
