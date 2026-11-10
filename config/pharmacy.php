@@ -17,12 +17,16 @@ return [
     // رمز التحقق من Google Search Console (قيمة content فقط)
     'google_verification' => '',
     // نص شريط العرض أعلى الموقع (اتركه فارغاً لإخفائه)
-    'promo_text' => 'توصيل مجاني للطلبات فوق 50,000 دينار داخل بغداد',
+    'promo_text' => '',
     'hours' => 'يومياً من 9 صباحاً إلى 12 منتصف الليل',
     'map_url' => 'https://www.google.com/maps/search/?api=1&query=صيدلية+الدلو+زيونة+بغداد',
+    // التوصيل: كل مفتاح يُشغَّل ويُوقَف من لوحة التحكم (الإعدادات > التوصيل)
+    'delivery_enabled' => '1',
+    'pickup_enabled' => '1',
+    'pickup_label' => 'استلام من الصيدلية (زيونة)',
+    'free_delivery_enabled' => '1',
     'free_delivery_over' => '50000',
     'delivery_areas' => implode("\n", [
-        'استلام من الصيدلية (زيونة)|0',
         'زيونة|1000',
         'شارع فلسطين|2000',
         'الغدير|2000',

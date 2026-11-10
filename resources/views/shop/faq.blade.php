@@ -19,7 +19,7 @@
         <div><b>لم تجد جواب سؤالك؟</b><br><span style="color:var(--ink-soft)">اسأل {{ $site['pharmacist_label'] }} مباشرة أو اترك لنا رسالة.</span></div>
         <div>
             <a class="btn btn--wa" href="{{ $consultUrl }}" target="_blank" rel="noopener">@icon('whatsapp') استشر {{ $site['pharmacist_label'] }}</a>
-            <a class="btn btn--ghost" href="{{ route('contact') }}">تواصل معنا</a>
+            @if ($on['contact'])<a class="btn btn--ghost" href="{{ route('contact') }}">تواصل معنا</a>@endif
         </div>
     </div>
 </div>

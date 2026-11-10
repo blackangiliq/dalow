@@ -12,7 +12,7 @@
             <h2>سلتك فارغة</h2>
             <p>أضف الأدوية التي تحتاجها، أو ارسل صورة الوصفة ونحن نجهزها.</p>
             <a class="btn" href="{{ route('products') }}">تصفح المنتجات</a>
-            <a class="btn btn--ghost" href="{{ route('prescription') }}">ارسل الوصفة</a>
+            @if ($on['prescription'])<a class="btn btn--ghost" href="{{ route('prescription') }}">ارسل الوصفة</a>@endif
         </div>
     @else
         <div class="split">
@@ -48,9 +48,9 @@
                 <h2>ملخص الطلب</h2>
                 <dl class="sum">
                     <div><dt>مجموع المواد</dt><dd>@iqd($subtotal)</dd></div>
-                    <div><dt>التوصيل</dt><dd>يحسب حسب المنطقة</dd></div>
+                    <div><dt>{{ $deliveryOn ? 'التوصيل' : 'الاستلام' }}</dt><dd>{{ $deliveryOn ? 'يحسب حسب المنطقة' : 'من الصيدلية، بدون أجور' }}</dd></div>
                 </dl>
-                @php $free = (int) $site['free_delivery_over']; @endphp
+                @php $free = $freeOver; @endphp
                 @if ($free)
                     <div class="freebar">
                         <i style="--w: {{ min(100, round($subtotal * 100 / $free)) }}%"></i>
@@ -58,7 +58,7 @@
                     </div>
                 @endif
                 <a class="btn btn--buy btn--block" style="margin-top:18px" href="{{ route('checkout') }}">إتمام الطلب</a>
-                @if ($site['whatsapp'])
+                @if ($site['whatsapp'] && $on['wa_order'])
                     @php
                         $waText = "مرحباً، أريد طلب هذه المواد من موقع {$site['name']}:\n"
                             .$items->map(fn ($i) => "• {$i->product->name} × {$i->qty} = ".\App\Support\Util::money($i->line))->implode("\n")

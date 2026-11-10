@@ -126,7 +126,7 @@ class CheckoutController extends Controller
             'customer_name' => 'required|string|min:3|max:80',
             'phone' => ['required', 'regex:/^07[3-9]\d{8}$/'],
             'area' => ['required', Rule::in(array_keys(Util::areas()))],
-            'address' => 'required|string|min:5|max:255',
+            'address' => [Util::isPickup($request->input('area')) ? 'nullable' : 'required', 'string', 'min:5', 'max:255'],
             'notes' => 'nullable|string|max:500',
             'prescription' => [$needsRx ? 'required' : 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:6144'],
         ], [
@@ -138,6 +138,7 @@ class CheckoutController extends Controller
             'customer_name' => 'الاسم', 'phone' => 'رقم الهاتف', 'area' => 'المنطقة', 'address' => 'العنوان', 'notes' => 'الملاحظات',
         ]);
         unset($data['prescription']);
+        $data['address'] = $data['address'] ?? 'يستلم من الصيدلية';
 
         return $data;
     }

@@ -45,6 +45,7 @@
             <a href="{{ route('admin.import') }}" @class(['on' => request()->routeIs('admin.import*')])>@icon('sheet') استيراد من Excel</a>
             <a href="{{ route('admin.categories.index') }}" @class(['on' => request()->routeIs('admin.categories.*')])>@icon('tag') الأقسام</a>
             <span class="side__label">الإعداد</span>
+            <a href="{{ route('admin.appearance') }}" @class(['on' => request()->routeIs('admin.appearance')])>@icon('scan') واجهة الموقع</a>
             <a href="{{ route('admin.faqs.index') }}" @class(['on' => request()->routeIs('admin.faqs.*')])>@icon('info') الأسئلة الشائعة</a>
             <a href="{{ route('admin.staff.index') }}" @class(['on' => request()->routeIs('admin.staff.*')])>@icon('users') الموظفون</a>
             <a href="{{ route('admin.telegram') }}" @class(['on' => request()->routeIs('admin.telegram*')])>@icon('send') إشعارات تيليجرام</a>

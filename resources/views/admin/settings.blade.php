@@ -42,18 +42,37 @@
         </div>
     </div>
 
-    <div class="card">
-        <h2>التوصيل</h2>
-        <div class="form">
+    <div class="card" id="delivery">
+        <h2>التوصيل والاستلام</h2>
+        <p class="card__sub">شغّل وأوقف كل خدمة. يجب أن تبقى واحدة على الأقل من التوصيل أو الاستلام.</p>
+        @error('delivery_enabled')<div class="flash flash--bad">{{ $message }}</div>@enderror
+        <div class="toggles">
+            <label class="toggle">
+                <span class="switch"><input type="checkbox" name="delivery_enabled" value="1" @checked(old('delivery_enabled', $switches['delivery_enabled']))><span></span></span>
+                <span><b>التوصيل للمنازل</b><small>عند الإيقاف يختفي اختيار المنطقة ويبقى الاستلام من الصيدلية فقط</small></span>
+            </label>
+            <label class="toggle">
+                <span class="switch"><input type="checkbox" name="pickup_enabled" value="1" @checked(old('pickup_enabled', $switches['pickup_enabled']))><span></span></span>
+                <span><b>الاستلام من الصيدلية</b><small>خيار بلا أجور، ولا يُطلب فيه عنوان</small></span>
+            </label>
+            <label class="toggle">
+                <span class="switch"><input type="checkbox" name="free_delivery_enabled" value="1" @checked(old('free_delivery_enabled', $switches['free_delivery_enabled']))><span></span></span>
+                <span><b>التوصيل المجاني</b><small>للطلبات التي تتجاوز المبلغ المحدد أدناه</small></span>
+            </label>
+        </div>
+        <div class="form" style="margin-top:18px">
             <div class="field">
-                <label for="delivery_areas">المناطق وأجور التوصيل</label>
+                <label for="delivery_areas">مناطق التوصيل وأجورها</label>
                 <textarea id="delivery_areas" name="delivery_areas" rows="10" required>{{ old('delivery_areas', $values['delivery_areas']) }}</textarea>
                 <small>كل منطقة بسطر، بالصيغة: اسم المنطقة|الأجرة بالدينار</small>
             </div>
             <div class="field">
                 <label for="free_delivery_over">توصيل مجاني للطلبات فوق (د.ع)</label>
                 <input id="free_delivery_over" type="number" name="free_delivery_over" min="0" step="1000" value="{{ old('free_delivery_over', $values['free_delivery_over']) }}">
-                <small>اكتب 0 لإلغاء التوصيل المجاني</small>
+                <small>يُستعمل فقط إذا كان «التوصيل المجاني» مشغلاً</small>
+                <label for="pickup_label" style="margin-top:14px">اسم خيار الاستلام كما يراه الزبون</label>
+                <input id="pickup_label" type="text" name="pickup_label" value="{{ old('pickup_label', $values['pickup_label']) }}" required>
+                <small>بعد أي تغيير هنا راجع النصوص التي تذكر التوصيل في <a href="{{ route('admin.appearance') }}#texts" style="text-decoration:underline">واجهة الموقع</a> وفي الأسئلة الشائعة.</small>
             </div>
         </div>
     </div>
@@ -63,8 +82,8 @@
         <div class="form">
             <div class="field">
                 <label for="promo_text">نص شريط العرض أعلى الموقع</label>
-                <input id="promo_text" type="text" name="promo_text" value="{{ old('promo_text', trim((string) $values['promo_text'])) }}" placeholder="توصيل مجاني للطلبات فوق 50,000 دينار">
-                <small>يظهر في أعلى كل صفحة ويقود إلى العروض. اتركه فارغاً لإخفائه.</small>
+                <input id="promo_text" type="text" name="promo_text" value="{{ old('promo_text', $values['promo_text']) }}" placeholder="مثلاً: خصم 10% على كل الفيتامينات هذا الأسبوع">
+                <small>يظهر في أعلى كل صفحة ويقود إلى العروض. إن تركته فارغاً يُكتب تلقائياً من حد التوصيل المجاني، ويُخفى كلياً من «واجهة الموقع».</small>
             </div>
             <div class="field">
                 <label for="google_verification">رمز التحقق من Google Search Console</label>
@@ -74,11 +93,7 @@
         </div>
     </div>
 
-    <div class="card">
-        <h2>مظهر الموقع</h2>
-        <label class="check"><input type="checkbox" name="capsules" value="1" @checked(old('capsules', $values['capsules']))> تناثر الكبسولات عند النقر أو اللمس في أي مكان من الموقع</label>
-        <p class="card__sub" style="margin:8px 0 0">يتوقف تلقائياً عند من فعّل «تقليل الحركة» في جهازه.</p>
-    </div>
+    <div class="hint" style="margin-top:18px">النصوص والأقسام والألوان وتشغيل الخصائص في صفحة <a href="{{ route('admin.appearance') }}" style="text-decoration:underline">واجهة الموقع</a>.</div>
 
     <button class="btn" style="margin-top:18px">حفظ الإعدادات</button>
 </form>

@@ -13,6 +13,8 @@ use App\Models\Staff;
 use App\Models\User;
 use App\Models\Visit;
 use App\Search\ProductSearch;
+use App\Support\Ui;
+use App\Support\Util;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramDeliveryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -249,6 +251,85 @@ class PharmacyTest extends TestCase
 
         $this->actingAs(User::first())->get('/admin/analytics')->assertOk()->assertSee('أكثر الأقسام زيارة');
         $this->assertSame(2, Visit::count());                          // المدير لا يُحسب زائراً
+    }
+
+    public function test_admin_controls_delivery_pickup_and_free_delivery(): void
+    {
+        $admin = User::first();
+        $base = ['name' => 'صيدلية الدلو', 'address' => 'زيونة', 'phone' => '07700000712', 'pharmacist_label' => 'الصيدلانية',
+            'delivery_areas' => "زيونة|1000\nالمنصور|5000", 'pickup_label' => 'استلام من الصيدلية', 'free_delivery_over' => 20000];
+        $product = Product::where('requires_prescription', false)->where('stock', '>', 5)->where('price', '<', 5000)->first();
+        $order = function (string $area, int $qty = 1) use ($product) {
+            $this->post('/cart/add', ['product_id' => $product->id, 'qty' => $qty]);
+            $this->post('/checkout', ['customer_name' => 'محمد علي', 'phone' => '07701234567', 'area' => $area, 'address' => $area === 'استلام من الصيدلية' ? '' : 'محلة 712 زقاق 5']);
+
+            return Order::latest('id')->first();
+        };
+
+        // توصيل واستلام وتوصيل مجاني: الكل مشغل
+        $this->actingAs($admin)->put('/admin/settings', $base + ['delivery_enabled' => 1, 'pickup_enabled' => 1, 'free_delivery_enabled' => 1])->assertSessionHasNoErrors();
+        auth()->logout();
+        $this->get('/')->assertSee('توصيل مجاني للطلبات فوق 20,000 دينار');
+        $this->assertSame(5000, $order('المنصور')->delivery_fee);
+        $this->assertSame(0, $order('المنصور', 9)->delivery_fee);                 // تجاوز حد التوصيل المجاني
+        $pickup = $order('استلام من الصيدلية');                                 // بلا عنوان وبلا أجور
+        $this->assertSame(0, $pickup->delivery_fee);
+        $this->assertSame('يستلم من الصيدلية', $pickup->address);
+
+        // إيقاف التوصيل المجاني
+        $this->actingAs($admin)->put('/admin/settings', $base + ['delivery_enabled' => 1, 'pickup_enabled' => 1])->assertSessionHasNoErrors();
+        auth()->logout();
+        $this->assertSame(5000, $order('المنصور', 9)->delivery_fee);
+        $this->get('/')->assertDontSee('class="promo"', false);               // شريط التوصيل المجاني اختفى
+
+        // إيقاف التوصيل كلياً: يبقى الاستلام فقط
+        $this->actingAs($admin)->put('/admin/settings', $base + ['pickup_enabled' => 1])->assertSessionHasNoErrors();
+        auth()->logout();
+        $this->assertSame(['استلام من الصيدلية'], array_keys(Util::areas()));
+        $count = Order::count();
+        $this->post('/cart/add', ['product_id' => $product->id]);
+        $this->post('/checkout', ['customer_name' => 'محمد علي', 'phone' => '07701234567', 'area' => 'المنصور', 'address' => 'محلة 712 زقاق 5'])->assertSessionHasErrors('area');
+        $this->assertSame($count, Order::count());
+
+        // لا يمكن إيقاف الاثنين معاً
+        $this->actingAs($admin)->put('/admin/settings', $base)->assertSessionHasErrors('delivery_enabled');
+    }
+
+    public function test_admin_controls_what_the_storefront_shows(): void
+    {
+        $admin = User::first();
+        $this->get('/')->assertSee('دواؤك من صيدلية الدلو يوصلك لباب بيتك')->assertSee('استشر الصيدلانية')->assertSee('تحقق من دوائك');
+
+        $sections = array_keys(Ui::SECTIONS);
+        $payload = [
+            'text' => ['hero_title' => 'صيدليتك في جيبك', 'assure1_title' => 'نوصل خلال ساعة'],
+            'color' => ['water' => '#7b2cbf', 'navy' => '#0b2545', 'buy' => '#f4b63f', 'coral' => '#d8452b'],
+            // كل الخصائص مشغلة عدا الاستشارة والتحقق والسلة
+            'on' => collect(array_merge(...array_values(Ui::FEATURES)))->keys()->diff(['consult', 'verify', 'cart'])->mapWithKeys(fn ($k) => [$k => 1])->all(),
+            // كل الأقسام ظاهرة عدا «كيف تطلب»، و«زورنا» أولاً
+            'section_on' => collect($sections)->diff(['steps'])->mapWithKeys(fn ($k) => [$k => 1])->all(),
+            'section_order' => collect($sections)->mapWithKeys(fn ($k, $i) => [$k => $k === 'visit' ? 0 : $i + 1])->all(),
+        ];
+        $this->actingAs($admin)->put('/admin/appearance', $payload)->assertSessionHasNoErrors()->assertSessionHas('ok');
+        auth()->logout();
+
+        $html = $this->get('/')->assertOk()
+            ->assertSee('صيدليتك في جيبك')->assertSee('نوصل خلال ساعة')
+            ->assertDontSee('دواؤك من صيدلية الدلو يوصلك لباب بيتك')
+            ->assertDontSee('data-track="consult"', false)->assertDontSee('تحقق من دوائك')->assertDontSee('كيف تطلب')->assertDontSee('أضف للسلة')
+            ->assertSee('--water: #7b2cbf', false)->getContent();
+        $this->assertLessThan(strpos($html, 'data-section="cats"'), strpos($html, 'data-section="visit"'));   // «زورنا» قبل الأقسام
+
+        // الصفحات الموقوفة تُغلق
+        $this->get('/verify')->assertNotFound();
+        $this->get('/cart')->assertNotFound();
+        $this->get('/faq')->assertOk();
+        $this->get(route('product', Product::first()))->assertOk()->assertSee('اطلب عبر واتساب')->assertDontSee('أضف للسلة');
+
+        // الرجوع للنصوص الافتراضية
+        $this->actingAs($admin)->post('/admin/appearance/reset', ['what' => 'texts']);
+        auth()->logout();
+        $this->get('/')->assertSee('دواؤك من صيدلية الدلو يوصلك لباب بيتك');
     }
 
     public function test_prescription_medicine_needs_a_prescription_image(): void

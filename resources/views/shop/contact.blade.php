@@ -7,13 +7,15 @@
     <p class="page__sub">اختر الطريقة الأسهل لك. نرد خلال أوقات الدوام.</p>
 
     <div class="ways">
+        @if ($on['consult'])
         <a class="way way--wa" href="{{ $consultUrl }}" target="_blank" rel="noopener">
             @icon('whatsapp')
             <b>استشر {{ $site['pharmacist_label'] }}</b>
             <span>سؤال عن دواء أو جرعة أو بديل. تفتح محادثة واتساب برسالة جاهزة.</span>
             <strong>ابدأ المحادثة</strong>
         </a>
-        @if ($site['whatsapp'])
+        @endif
+        @if ($site['whatsapp'] && $on['wa_order'])
         <a class="way way--wa" target="_blank" rel="noopener" href="{{ \App\Support\Util::wa($site['whatsapp'], 'مرحباً، أنا قادم من موقع '.$site['name'].' وأريد أن أطلب: ') }}">
             @icon('cart')
             <b>اطلب عبر واتساب</b>

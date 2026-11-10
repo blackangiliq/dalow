@@ -57,9 +57,11 @@
             @if ($q !== '')
                 <h2>«{{ $q }}» غير موجود في الموقع حالياً</h2>
                 <p>نستطيع توفيره لك. اطلبه بضغطة وسنبحث عنه في المذاخر ونتصل بك، أو ارسل صورة الوصفة.</p>
+                @if ($on['requests'])
                 <a class="btn btn--buy" href="{{ route('request', ['name' => $q]) }}" data-track="request">اطلب توفير «{{ \Illuminate\Support\Str::limit($q, 30) }}»</a>
+                @endif
                 <a class="btn btn--wa" href="{{ \App\Support\Util::wa(\App\Support\Util::pharmacistNumber(), 'مرحباً، أنا قادم من موقع '.$site['name'].' وأبحث عن: '.$q) }}" target="_blank" rel="noopener" data-track="consult">@icon('whatsapp') اسأل {{ $site['pharmacist_label'] }}</a>
-                <a class="btn btn--ghost" href="{{ route('prescription') }}">ارسل الوصفة</a>
+                @if ($on['prescription'])<a class="btn btn--ghost" href="{{ route('prescription') }}">ارسل الوصفة</a>@endif
                 @if ($trending)
                     <div class="chips"><span>جرّب أيضاً:</span>@foreach ($trending as $term)<a href="{{ route('products', ['q' => $term]) }}" data-track="chip">{{ $term }}</a>@endforeach</div>
                 @endif

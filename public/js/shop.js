@@ -225,11 +225,17 @@
     const free = Number(area.dataset.free) || 0;
     const feeEl = document.querySelector('[data-fee-out]');
     const totalEl = document.querySelector('[data-total-out]');
+    const address = document.querySelector('[data-address]');
+    const optional = document.querySelector('[data-address-optional]');
     const update = () => {
       const opt = area.selectedOptions[0];
+      // عند الاستلام من الصيدلية لا نطلب عنواناً
+      const pickup = !!opt && opt.value !== '' && opt.value === area.dataset.pickup;
+      if (address) address.required = !pickup;
+      if (optional) optional.hidden = !pickup;
       if (!opt || !opt.value) { feeEl.textContent = 'اختر المنطقة'; totalEl.textContent = fmt(subtotal); return; }
       const fee = free && subtotal >= free ? 0 : Number(opt.dataset.fee);
-      feeEl.textContent = fee ? fmt(fee) : 'مجاني';
+      feeEl.textContent = fee ? fmt(fee) : (pickup ? 'بدون أجور' : 'مجاني');
       totalEl.textContent = fmt(subtotal + fee);
     };
     area.addEventListener('change', update);

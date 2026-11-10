@@ -14,12 +14,14 @@
             <span class="tag tag--rx">بوصفة طبية</span>
         @endif
     </a>
+    @if ($on['accounts'] ?? true)
     <div class="pcard__favwrap">
         <form method="post" action="{{ route('favorite', $p) }}" class="js-fav">
             @csrf
             <button @class(['fav', 'on' => in_array($p->id, $favoriteIds ?? [], true)]) data-track="favorite" aria-label="أعلمني عند انخفاض سعر {{ $p->name }}" title="أعلمني عند انخفاض السعر">@icon('heart')</button>
         </form>
     </div>
+    @endif
     <div class="pcard__body">
         <a class="pcard__name" href="{{ route('product', $p) }}" data-track="product">{{ $p->name }}</a>
         @if ($p->scientific_name)
@@ -30,11 +32,15 @@
                 @if ($p->discount)<s>@iqd($p->old_price)</s>@endif
                 <b>@iqd($p->price)</b>
             </div>
+            @if ($on['cart'] ?? true)
             <form method="post" action="{{ route('cart.add') }}" class="js-add">
                 @csrf
                 <input type="hidden" name="product_id" value="{{ $p->id }}">
                 <button class="btn btn--sm btn--buy" data-track="add-to-cart" @disabled($p->stock < 1) aria-label="أضف {{ $p->name }} للسلة">أضف للسلة</button>
             </form>
+            @else
+                <a class="btn btn--sm btn--buy" href="{{ route('product', $p) }}" data-track="product">التفاصيل</a>
+            @endif
         </div>
     </div>
 </article>

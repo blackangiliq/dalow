@@ -10,9 +10,9 @@
     @error('phone')<span class="err">{{ $message }}</span>@else<span class="hint">نتصل بك على هذا الرقم لتأكيد الطلب</span>@enderror
 </div>
 <div @class(['field', 'bad' => $errors->has('area')])>
-    <label for="area">المنطقة</label>
-    <select id="area" name="area" required @isset($subtotal) data-area data-subtotal="{{ $subtotal }}" data-free="{{ (int) $site['free_delivery_over'] }}" @endisset>
-        <option value="">اختر منطقتك</option>
+    <label for="area">{{ $deliveryOn ? 'المنطقة' : 'طريقة الاستلام' }}</label>
+    <select id="area" name="area" required @isset($subtotal) data-area data-subtotal="{{ $subtotal }}" data-free="{{ $freeOver }}" data-pickup="{{ \App\Support\Util::pickupEnabled() ? \App\Support\Util::pickupLabel() : '' }}" @endisset>
+        @if (count($areas) > 1)<option value="">اختر منطقتك</option>@endif
         @foreach ($areas as $name => $fee)
             <option value="{{ $name }}" data-fee="{{ $fee }}" @selected(old('area', $customer->area ?? '') === $name)>{{ $name }} ({{ $fee ? 'توصيل '.number_format($fee).' د.ع' : 'بدون أجور' }})</option>
         @endforeach
@@ -20,8 +20,8 @@
     @error('area')<span class="err">{{ $message }}</span>@enderror
 </div>
 <div @class(['field', 'bad' => $errors->has('address')])>
-    <label for="address">العنوان</label>
-    <input id="address" name="address" value="{{ old('address', $customer->address ?? '') }}" placeholder="المحلة، الزقاق، رقم الدار، أقرب نقطة دالة" autocomplete="street-address" required>
+    <label for="address">العنوان <span class="hint" data-address-optional hidden>(اختياري عند الاستلام)</span></label>
+    <input id="address" name="address" value="{{ old('address', $customer->address ?? '') }}" placeholder="المحلة، الزقاق، رقم الدار، أقرب نقطة دالة" autocomplete="street-address" data-address>
     @error('address')<span class="err">{{ $message }}</span>@enderror
 </div>
 <div class="field field--full">

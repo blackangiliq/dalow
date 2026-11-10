@@ -505,6 +505,9 @@ ol.steps { margin: 0; padding: 0; }
 }
 @media (max-width: 700px) {
   body { padding-bottom: 68px; }
+  body.no-tabbar { padding-bottom: 0; }
+  body.no-tabbar .consult-float { display: inline-flex; inset-block-end: 16px; inset-inline-start: 16px; height: 48px; padding: 0 16px; font-size: 15px; }
+  body.no-tabbar .buybar { bottom: 0; }
   .tabbar {
     display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; inset-inline: 0; bottom: 0; z-index: 80;
     background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
@@ -536,7 +539,7 @@ ol.steps { margin: 0; padding: 0; }
 
 /* ---------- زر الشراء: لون واحد مميز لكل ما يقود إلى إتمام الطلب ---------- */
 .btn--buy { background: var(--buy); color: var(--navy); }
-.btn--buy:hover { background: #e9a727; }
+.btn--buy:hover { background: color-mix(in srgb, var(--buy) 88%, #000); }
 
 /* ---------- شريط العرض ---------- */
 .promo { background: var(--saffron); color: var(--navy); font-weight: 700; font-size: 15px; text-align: center; }
@@ -578,7 +581,7 @@ html[data-theme=dark] .theme-sun, html:not([data-theme=dark]) .theme-moon { disp
 .empty .chips a:hover { background: var(--mist); }
 
 /* ---------- خدمات الصيدلية ---------- */
-.services { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.services { display: grid; grid-template-columns: repeat(var(--cols, 4), 1fr); gap: 14px; }
 .service { display: flex; flex-direction: column; gap: 6px; padding: 22px; border-radius: 16px; background: var(--card); border: 1.5px solid var(--line); }
 .service:hover { border-color: var(--water); }
 .service .ico { width: 36px; height: 36px; color: var(--water); margin-bottom: 6px; }

@@ -23,6 +23,7 @@ class ShopController extends Controller
             'faqs' => Faq::where('is_active', true)->orderBy('sort')->take(4)->get(),
             'trending' => $this->trending(),
             'recent' => $this->recentlyViewed(),
+            'sections' => \App\Support\Ui::visibleSections(),
         ]);
     }
 

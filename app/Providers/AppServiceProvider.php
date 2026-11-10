@@ -9,6 +9,7 @@ use App\Models\ContactMessage;
 use App\Services\Telegram\MadelineTelegramClient;
 use App\Services\Telegram\TelegramClient;
 use App\Support\Cart;
+use App\Support\Ui;
 use App\Support\Util;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -48,27 +49,37 @@ class AppServiceProvider extends ServiceProvider
 
         // بيانات مشتركة لكل صفحات المتجر، تُحسب مرة واحدة في الطلب
         View::composer(['layouts.shop', 'shop.*'], function ($view) {
-            static $shared;
-            $shared ??= [
+            // تُحسب مرة واحدة لكل طلب وتُحفظ عليه (لا على مستوى العملية، حتى لا تبقى قيم قديمة بين الطلبات)
+            $request = request();
+            if ($request->attributes->has('shop.shared')) {
+                return $view->with($request->attributes->get('shop.shared'));
+            }
+            $shared = [
                 'navCategories' => Category::orderBy('sort')->get(),
                 'cartCount' => Cart::count(),
-                'site' => collect(['name', 'address', 'phone', 'whatsapp', 'hours', 'map_url', 'free_delivery_over', 'pharmacist_label', 'email', 'facebook_url', 'instagram_url', 'capsules', 'google_verification', 'promo_text'])
+                'site' => collect(['name', 'address', 'phone', 'whatsapp', 'hours', 'map_url', 'pharmacist_label', 'email', 'facebook_url', 'instagram_url', 'google_verification'])
                     ->mapWithKeys(fn ($k) => [$k => Setting::get($k)]),
                 'consultUrl' => Util::consultLink(null, url()->current()),
+                // ما يديره المدير من صفحة «واجهة الموقع»
+                'ui' => Ui::texts(),
+                'on' => collect(array_merge(...array_values(Ui::FEATURES)))->map(fn ($def, $key) => Ui::on($key))->all(),
+                'customColors' => Ui::customColors(),
+                'freeOver' => Util::freeDeliveryOver(),
+                'deliveryOn' => Util::deliveryEnabled(),
             ];
-            // بيانات الزبون المسجل: تُحسب مرة واحدة في الطلب
-            static $account;
-            if ($account === null) {
-                $customer = auth('customer')->user();
-                $favoriteIds = $customer ? $customer->favorites()->pluck('products.id')->all() : [];
-                $account = [
-                    'me' => $customer,
-                    'favoriteIds' => $favoriteIds,
-                    'favoriteCount' => count($favoriteIds),
-                    'unreadCount' => $customer?->notifications()->whereNull('read_at')->count() ?? 0,
-                ];
-            }
-            $shared = $shared + $account;
+            // شريط العرض: نص المدير، وإن لم يكتب نصاً فمن إعدادات التوصيل المجاني
+            $shared['promo'] = trim((string) Setting::get('promo_text'))
+                ?: ($shared['freeOver'] ? 'توصيل مجاني للطلبات فوق '.number_format($shared['freeOver']).' دينار' : '');
+            // بيانات الزبون المسجل
+            $customer = auth('customer')->user();
+            $favoriteIds = $customer ? $customer->favorites()->pluck('products.id')->all() : [];
+            $shared += [
+                'me' => $customer,
+                'favoriteIds' => $favoriteIds,
+                'favoriteCount' => count($favoriteIds),
+                'unreadCount' => $customer?->notifications()->whereNull('read_at')->count() ?? 0,
+            ];
+            $request->attributes->set('shop.shared', $shared);
             $view->with($shared);
         });
 

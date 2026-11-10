@@ -22,41 +22,44 @@ Route::middleware(TrackVisit::class)->group(function () {
     Route::get('/products', [ShopController::class, 'products'])->name('products');
     Route::get('/category/{category}', [ShopController::class, 'products'])->name('category');
     Route::get('/product/{product}', [ShopController::class, 'show'])->name('product');
-    Route::get('/search/suggest', [ShopController::class, 'suggest'])->name('suggest')->middleware('throttle:suggest');
-    Route::get('/verify', [ShopController::class, 'verify'])->name('verify')->middleware('throttle:track');
+    Route::get('/search/suggest', [ShopController::class, 'suggest'])->name('suggest')->middleware(['feature:suggest', 'throttle:suggest']);
+    Route::get('/verify', [ShopController::class, 'verify'])->name('verify')->middleware(['feature:verify', 'throttle:track']);
     Route::post('/t', TrackController::class)->name('track.event')->middleware('throttle:events');
 
-    Route::get('/cart', [CartController::class, 'index'])->name('cart');
-    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-    Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');
-
-    Route::get('/checkout', [CheckoutController::class, 'form'])->name('checkout');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store')->middleware('throttle:orders');
-    Route::get('/prescription', [CheckoutController::class, 'prescriptionForm'])->name('prescription');
-    Route::post('/prescription', [CheckoutController::class, 'prescriptionStore'])->name('prescription.store')->middleware('throttle:orders');
+    Route::middleware('feature:cart')->group(function () {
+        Route::get('/cart', [CartController::class, 'index'])->name('cart');
+        Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+        Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');
+        Route::get('/checkout', [CheckoutController::class, 'form'])->name('checkout');
+        Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store')->middleware('throttle:orders');
+    });
+    Route::get('/prescription', [CheckoutController::class, 'prescriptionForm'])->name('prescription')->middleware('feature:prescription');
+    Route::post('/prescription', [CheckoutController::class, 'prescriptionStore'])->name('prescription.store')->middleware(['feature:prescription', 'throttle:orders']);
     Route::get('/order/{number}/done', [CheckoutController::class, 'done'])->name('order.done');
-    Route::get('/track', [CheckoutController::class, 'track'])->name('track')->middleware('throttle:track');
+    Route::get('/track', [CheckoutController::class, 'track'])->name('track')->middleware(['feature:track', 'throttle:track']);
 
-    Route::get('/request', [ProductRequestController::class, 'form'])->name('request');
-    Route::post('/request', [ProductRequestController::class, 'store'])->name('request.store')->middleware('throttle:contact');
+    Route::get('/request', [ProductRequestController::class, 'form'])->name('request')->middleware('feature:requests');
+    Route::post('/request', [ProductRequestController::class, 'store'])->name('request.store')->middleware(['feature:requests', 'throttle:contact']);
 
-    Route::get('/faq', [PageController::class, 'faq'])->name('faq');
+    Route::get('/faq', [PageController::class, 'faq'])->name('faq')->middleware('feature:faq');
     Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
-    Route::get('/contact', [PageController::class, 'contact'])->name('contact');
-    Route::post('/contact', [PageController::class, 'contactStore'])->name('contact.store')->middleware('throttle:contact');
+    Route::get('/contact', [PageController::class, 'contact'])->name('contact')->middleware('feature:contact');
+    Route::post('/contact', [PageController::class, 'contactStore'])->name('contact.store')->middleware(['feature:contact', 'throttle:contact']);
 
     // حساب الزبون
-    Route::get('/register', [CustomerAuthController::class, 'showRegister'])->name('customer.register');
-    Route::post('/register', [CustomerAuthController::class, 'register'])->middleware('throttle:login');
-    Route::get('/login', [CustomerAuthController::class, 'showLogin'])->name('customer.login');
-    Route::post('/login', [CustomerAuthController::class, 'login'])->middleware('throttle:login');
-    Route::post('/favorite/{product}', [FavoriteController::class, 'toggle'])->name('favorite');
+    Route::middleware('feature:accounts')->group(function () {
+        Route::get('/register', [CustomerAuthController::class, 'showRegister'])->name('customer.register');
+        Route::post('/register', [CustomerAuthController::class, 'register'])->middleware('throttle:login');
+        Route::get('/login', [CustomerAuthController::class, 'showLogin'])->name('customer.login');
+        Route::post('/login', [CustomerAuthController::class, 'login'])->middleware('throttle:login');
+        Route::post('/favorite/{product}', [FavoriteController::class, 'toggle'])->name('favorite');
 
-    Route::middleware('auth:customer')->group(function () {
-        Route::post('/logout', [CustomerAuthController::class, 'logout'])->name('customer.logout');
-        Route::get('/account', [AccountController::class, 'index'])->name('account');
-        Route::put('/account', [AccountController::class, 'update'])->name('account.update');
-        Route::post('/account/reorder/{order}', [AccountController::class, 'reorder'])->name('account.reorder');
+        Route::middleware('auth:customer')->group(function () {
+            Route::post('/logout', [CustomerAuthController::class, 'logout'])->name('customer.logout');
+            Route::get('/account', [AccountController::class, 'index'])->name('account');
+            Route::put('/account', [AccountController::class, 'update'])->name('account.update');
+            Route::post('/account/reorder/{order}', [AccountController::class, 'reorder'])->name('account.reorder');
+        });
     });
 });
 
@@ -126,6 +129,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::put('/requests/{productRequest}', [Admin\ProductRequestController::class, 'update'])->name('requests.update');
     Route::delete('/requests/{productRequest}', [Admin\ProductRequestController::class, 'destroy'])->name('requests.destroy');
     Route::get('/requests/{productRequest}/image', [Admin\ProductRequestController::class, 'image'])->name('requests.image');
+
+    Route::get('/appearance', [Admin\AppearanceController::class, 'edit'])->name('appearance');
+    Route::put('/appearance', [Admin\AppearanceController::class, 'update'])->name('appearance.update');
+    Route::post('/appearance/reset', [Admin\AppearanceController::class, 'reset'])->name('appearance.reset');
 
     Route::get('/settings', [Admin\SettingController::class, 'edit'])->name('settings');
     Route::put('/settings', [Admin\SettingController::class, 'update'])->name('settings.update');

@@ -28,6 +28,12 @@ class Setting extends Model
         return ($value === null || $value === '') ? (config('pharmacy.'.$key) ?? $default) : $value;
     }
 
+    /** يمسح النسخة المحفوظة في الذاكرة (تُقرأ الإعدادات من جديد عند أول طلب) */
+    public static function flushCache(): void
+    {
+        self::$cache = null;
+    }
+
     public static function put(string $key, ?string $value): void
     {
         self::query()->updateOrCreate(['key' => $key], ['value' => $value]);

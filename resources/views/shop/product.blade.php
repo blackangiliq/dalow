@@ -2,7 +2,7 @@
 @section('title', $product->name.': السعر والتوصيل في بغداد')
 @section('ogType', 'product')
 @if ($product->image_url) @section('ogImage', $product->image_url) @endif
-@section('bodyClass', $product->stock > 0 ? 'has-buybar' : '')
+@section('bodyClass', $product->stock > 0 && $on['cart'] ? 'has-buybar' : '')
 @section('description', $product->name.($product->scientific_name ? ' ('.$product->scientific_name.')' : '').' بسعر '.number_format($product->price).' دينار من '.$site['name'].'. '.$product->description.' توصيل لكل مناطق بغداد والدفع عند الاستلام.')
 
 @section('content')
@@ -32,13 +32,13 @@
                 <dt>التوفر</dt>
                 <dd>
                     @if ($product->stock < 1)<span class="stock stock--out">غير متوفر حالياً</span>
-                    @elseif ($product->stock <= 5)<span class="stock stock--low">بقيت <span class="num">{{ $product->stock }}</span> فقط</span>
+                    @elseif ($product->stock <= 5 && $on['stock_count'])<span class="stock stock--low">بقيت <span class="num">{{ $product->stock }}</span> فقط</span>
                     @else<span class="stock">متوفر</span>
                     @endif
                 </dd>
             </dl>
 
-            @if ($soldWeek >= 3)
+            @if ($soldWeek >= 3 && $on['proof'])
                 <div class="proof">@icon('fire') طُلب <span class="num">{{ $soldWeek }}</span> مرة هذا الأسبوع</div>
             @endif
 
@@ -51,6 +51,7 @@
                 $waOrder = \App\Support\Util::wa($site['whatsapp'], "مرحباً، أريد طلب هذا المنتج من موقع {$site['name']}:\n{$product->name}\n".route('product', $product)."\nالكمية: 1");
             @endphp
             @if ($product->stock > 0)
+                @if ($on['cart'])
                 <form class="buy js-add" method="post" action="{{ route('cart.add') }}" id="buyform">
                     @csrf
                     <input type="hidden" name="product_id" value="{{ $product->id }}">
@@ -60,28 +61,41 @@
                         <button type="button" data-step="-1" aria-label="إنقاص الكمية">−</button>
                     </div>
                     <button class="btn btn--buy" data-track="add-to-cart">@icon('cart') أضف للسلة</button>
-                    @if ($site['whatsapp'])
+                    @if ($site['whatsapp'] && $on['wa_order'])
                         <a class="btn btn--wa-line" href="{{ $waOrder }}" target="_blank" rel="noopener" data-track="wa-order">@icon('whatsapp') اطلب عبر واتساب</a>
                     @endif
                 </form>
+                @elseif ($site['whatsapp'])
+                <div class="buy">
+                    <a class="btn btn--wa" href="{{ $waOrder }}" target="_blank" rel="noopener" data-track="wa-order">@icon('whatsapp') اطلب عبر واتساب</a>
+                </div>
+                @endif
             @else
-                <div class="note note--bad">@icon('alert') <p>هذا المنتج غير متوفر حالياً. <a class="more" href="{{ route('request', ['name' => $product->name]) }}" data-track="request">اطلب توفيره</a> وسنتصل بك عند وصوله، أو اسأل {{ $site['pharmacist_label'] }} عن بديل مناسب.</p></div>
+                <div class="note note--bad">@icon('alert') <p>هذا المنتج غير متوفر حالياً. @if ($on['requests'])<a class="more" href="{{ route('request', ['name' => $product->name]) }}" data-track="request">اطلب توفيره</a> وسنتصل بك عند وصوله، أو @endif اسأل {{ $site['pharmacist_label'] }} عن بديل مناسب.</p></div>
             @endif
 
+            @if ($on['accounts'] || $on['share'])
             <div class="sharebar">
+                @if ($on['accounts'])
                 <form method="post" action="{{ route('favorite', $product) }}" class="js-fav" style="flex:1 1 auto;display:flex">
                     @csrf
                     <button @class(['btn', 'btn--fav', 'on' => $isFavorite]) style="flex:1" data-track="favorite" data-fav-label>@icon('heart') <span>{{ $isFavorite ? 'سنعلمك عند انخفاض السعر' : 'أعلمني عند انخفاض السعر' }}</span></button>
                 </form>
+                @endif
+                @if ($on['share'])
                 <a class="btn btn--ghost" target="_blank" rel="noopener" data-track="share"
                    href="https://wa.me/?text={{ rawurlencode($product->name.' بسعر '.\App\Support\Util::money($product->price).' من '.$site['name']."\n".route('product', $product)) }}">@icon('share') شارك المنتج</a>
+                @endif
             </div>
+            @endif
 
+            @if ($on['consult'])
             <div class="ask" data-section="ask">
                 <span class="ask__ico">@icon('whatsapp')</span>
                 <div><b>عندك سؤال عن هذا المنتج؟</b><span>الجرعة، طريقة الاستعمال، أو البديل المناسب. الاستشارة مجانية.</span></div>
                 <a class="btn btn--wa" href="{{ \App\Support\Util::consultLink($product) }}" target="_blank" rel="noopener" data-track="consult">استشر {{ $site['pharmacist_label'] }}</a>
             </div>
+            @endif
 
             @if ($product->requires_prescription)
                 <div class="note">@icon('alert') <p><strong>هذا الدواء يصرف بوصفة طبية.</strong> سنطلب منك إرفاق صورة الوصفة عند إتمام الطلب.</p></div>
@@ -94,14 +108,14 @@
     </div>
 </div>
 
-@if ($product->stock > 0)
+@if ($product->stock > 0 && $on['cart'])
 <div class="buybar">
     <div class="price"><b>@iqd($product->price)</b></div>
     <button class="btn btn--buy" form="buyform" data-track="add-to-cart">@icon('cart') أضف للسلة</button>
 </div>
 @endif
 
-@if ($together->count())
+@if ($together->count() && $on['together'])
 <section class="band" data-section="together">
     <div class="wrap">
         <div class="band__head"><div><h2>يُشترى معه غالباً</h2><p>من طلبات زبائن الصيدلية.</p></div></div>
@@ -112,7 +126,7 @@
 </section>
 @endif
 
-@if ($alternatives->count())
+@if ($alternatives->count() && $on['alternatives'])
 <section class="band" data-section="alternatives">
     <div class="wrap">
         <div class="band__head">
@@ -138,10 +152,10 @@
     </div>
 </section>
 @endif
-@if ($recent->count())
+@if ($recent->count() && $on['recent'])
 <section class="band" data-section="recent">
     <div class="wrap">
-        <div class="band__head"><h2>شاهدته مؤخراً</h2></div>
+        <div class="band__head"><h2>{{ $ui['recent_title'] }}</h2></div>
         <div class="grid">
             @foreach ($recent as $p) @include('partials.product-card', ['p' => $p]) @endforeach
         </div>

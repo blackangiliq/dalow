@@ -91,24 +91,60 @@ class Util
         return number_format((int) $amount).' د.ع';
     }
 
-    /** @return array<string,int> اسم المنطقة => أجور التوصيل */
+    public static function deliveryEnabled(): bool
+    {
+        return Setting::get('delivery_enabled', '1') !== '0';
+    }
+
+    public static function pickupEnabled(): bool
+    {
+        // لا يمكن إيقاف التوصيل والاستلام معاً: يبقى الاستلام متاحاً دائماً إن أُوقف التوصيل
+        return Setting::get('pickup_enabled', '1') !== '0' || ! self::deliveryEnabled();
+    }
+
+    public static function pickupLabel(): string
+    {
+        return (string) Setting::get('pickup_label');
+    }
+
+    /** حد التوصيل المجاني بالدينار، أو 0 إذا كان التوصيل المجاني متوقفاً */
+    public static function freeDeliveryOver(): int
+    {
+        if (! self::deliveryEnabled() || Setting::get('free_delivery_enabled', '1') === '0') {
+            return 0;
+        }
+
+        return (int) (self::amount(Setting::get('free_delivery_over')) ?? 0);
+    }
+
+    /** @return array<string,int> اسم المنطقة => أجور التوصيل (ومعها خيار الاستلام من الصيدلية إن كان مفعلاً) */
     public static function areas(): array
     {
         $areas = [];
-        foreach (preg_split('/\r?\n/', (string) Setting::get('delivery_areas')) as $line) {
-            $parts = array_map('trim', explode('|', $line));
-            if ($parts[0] !== '') {
-                $areas[$parts[0]] = self::amount($parts[1] ?? 0) ?? 0;
+        if (self::pickupEnabled()) {
+            $areas[self::pickupLabel()] = 0;
+        }
+        if (self::deliveryEnabled()) {
+            foreach (preg_split('/\r?\n/', (string) Setting::get('delivery_areas')) as $line) {
+                $parts = array_map('trim', explode('|', $line));
+                if ($parts[0] !== '') {
+                    $areas[$parts[0]] ??= self::amount($parts[1] ?? 0) ?? 0;
+                }
             }
         }
 
         return $areas;
     }
 
+    public static function isPickup(?string $area): bool
+    {
+        return self::pickupEnabled() && $area === self::pickupLabel();
+    }
+
     public static function deliveryFee(string $area, int $subtotal): int
     {
-        $free = self::amount(Setting::get('free_delivery_over'));
-        if ($free && $subtotal >= $free) {
+        $free = self::freeDeliveryOver();
+        if (self::isPickup($area) || ($free && $subtotal >= $free)) {
             return 0;
         }
 

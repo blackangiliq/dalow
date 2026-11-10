@@ -12,7 +12,7 @@
     <form class="split" method="post" action="{{ route('checkout.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="panel">
-            <h2>بيانات التوصيل</h2>
+            <h2>{{ $deliveryOn ? 'بيانات التوصيل' : 'بيانات الاستلام' }}</h2>
             <div class="form">
                 @include('shop._customer')
 
@@ -40,7 +40,7 @@
             @endforeach
             <dl class="sum" style="border-top:1.5px solid var(--line);padding-top:12px;margin-top:12px">
                 <div><dt>مجموع المواد</dt><dd>@iqd($subtotal)</dd></div>
-                <div><dt>التوصيل</dt><dd data-fee-out>اختر المنطقة</dd></div>
+                <div><dt>{{ $deliveryOn ? 'التوصيل' : 'الاستلام' }}</dt><dd data-fee-out>اختر المنطقة</dd></div>
                 <div class="total"><dt>المجموع</dt><dd data-total-out>@iqd($subtotal)</dd></div>
             </dl>
             <div class="note note--info" style="background:#fff">@icon('cash') <p>الدفع نقداً عند الاستلام.</p></div>

@@ -60,25 +60,36 @@
             ],
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+    @if ($customColors)
+    {{-- ألوان اختارها المدير من «واجهة الموقع» --}}
+    <style>:root {
+        @isset($customColors['water']) --water: {{ $customColors['water'] }}; --water-deep: color-mix(in srgb, {{ $customColors['water'] }} 78%, #000); --link: color-mix(in srgb, {{ $customColors['water'] }} 72%, #000); @endisset
+        @isset($customColors['navy']) --navy: {{ $customColors['navy'] }}; @endisset
+        @isset($customColors['buy']) --buy: {{ $customColors['buy'] }}; --saffron: {{ $customColors['buy'] }}; @endisset
+        @isset($customColors['coral']) --coral: {{ $customColors['coral'] }}; @endisset
+    }</style>
+    @endif
     @stack('head')
 </head>
-<body data-capsules="{{ $site['capsules'] ? 1 : 0 }}" data-track-url="{{ route('track.event') }}" class="@yield('bodyClass')">
-@if (trim((string) $site['promo_text']) !== '')
-<div class="promo"><a href="{{ route('products', ['offers' => 1]) }}" data-track="promo">{{ $site['promo_text'] }}</a></div>
+<body data-capsules="{{ $on['capsules'] ? 1 : 0 }}" data-track-url="{{ route('track.event') }}" class="@yield('bodyClass') {{ $on['tabbar'] ? '' : 'no-tabbar' }}">
+@if ($on['promo'] && $promo !== '')
+<div class="promo"><a href="{{ route('products', ['offers' => 1]) }}" data-track="promo">{{ $promo }}</a></div>
 @endif
+@if ($on['topbar'])
 <div class="topbar">
     <div class="wrap">
         <span>@icon('pin') {{ $site['address'] }}</span>
         <span class="hide-s">@icon('clock') {{ $site['hours'] }}</span>
         <nav aria-label="روابط المساعدة">
-            <a href="{{ route('verify') }}" data-track="verify">تحقق من دوائك</a>
-            <a href="{{ route('track') }}">تتبع طلبك</a>
-            <a href="{{ route('faq') }}">الأسئلة الشائعة</a>
-            <a href="{{ route('contact') }}">تواصل معنا</a>
+            @if ($on['verify'])<a href="{{ route('verify') }}" data-track="verify">تحقق من دوائك</a>@endif
+            @if ($on['track'])<a href="{{ route('track') }}">تتبع طلبك</a>@endif
+            @if ($on['faq'])<a href="{{ route('faq') }}">الأسئلة الشائعة</a>@endif
+            @if ($on['contact'])<a href="{{ route('contact') }}">تواصل معنا</a>@endif
         </nav>
         <a class="push" href="tel:{{ $site['phone'] }}" data-track="call">@icon('phone') <span class="num">{{ $site['phone'] }}</span></a>
     </div>
 </div>
+@endif
 
 <header class="masthead">
     <div class="wrap">
@@ -89,11 +100,11 @@
                     <path d="M3 22.500 8 17.500l5 5 5-5 5 5 4-4" stroke="#fff"/>
                 </svg>
             </span>
-            <span class="brand__name">{{ $site['name'] }}<span class="brand__sub">زيونة، محلة 712</span></span>
+            <span class="brand__name">{{ $site['name'] }}<span class="brand__sub">{{ $ui['brand_sub'] }}</span></span>
         </a>
 
         @sectionMissing('heroSearch')
-        <form class="search" action="{{ route('products') }}" role="search" data-suggest="{{ route('suggest') }}">
+        <form class="search" action="{{ route('products') }}" role="search" @if ($on['suggest']) data-suggest="{{ route('suggest') }}" @endif>
             <label class="sr" for="q">ابحث عن دواء</label>
             <input id="q" name="q" type="search" value="{{ request('q') }}" placeholder="ابحث بالعربي أو الإنجليزي: بنادول، Panadol" autocomplete="off">
             <button aria-label="ابحث">@icon('search')</button>
@@ -103,15 +114,21 @@
         @endif
 
         <nav class="actions" aria-label="حسابك وسلتك">
+            @if ($on['theme'])
             <button class="iconbtn" type="button" data-theme-toggle data-track="theme" aria-label="تبديل الوضع الداكن والفاتح">
                 <span class="theme-moon">@icon('moon')</span><span class="theme-sun">@icon('sun')</span>
             </button>
-            @if ($me)
-                <a class="iconbtn" href="{{ route('account', ['tab' => 'notifications']) }}" aria-label="الإشعارات{{ $unreadCount ? ' ('.$unreadCount.' جديدة)' : '' }}">@icon('bell') @if ($unreadCount)<b class="num">{{ $unreadCount }}</b>@endif</a>
             @endif
-            <a class="iconbtn" href="{{ route('account', ['tab' => 'favorites']) }}" aria-label="المفضلة">@icon('heart') <b class="num" data-fav-count @if (! $favoriteCount) hidden @endif>{{ $favoriteCount }}</b></a>
-            <a class="iconbtn" href="{{ $me ? route('account') : route('customer.login') }}" aria-label="{{ $me ? 'حسابي' : 'تسجيل الدخول' }}">@icon('user')</a>
-            <a class="cart" href="{{ route('cart') }}">@icon('cart') <span class="txt">السلة</span> <b class="num" data-cart-count>{{ $cartCount }}</b></a>
+            @if ($on['accounts'])
+                @if ($me)
+                    <a class="iconbtn" href="{{ route('account', ['tab' => 'notifications']) }}" aria-label="الإشعارات{{ $unreadCount ? ' ('.$unreadCount.' جديدة)' : '' }}">@icon('bell') @if ($unreadCount)<b class="num">{{ $unreadCount }}</b>@endif</a>
+                @endif
+                <a class="iconbtn" href="{{ route('account', ['tab' => 'favorites']) }}" aria-label="المفضلة">@icon('heart') <b class="num" data-fav-count @if (! $favoriteCount) hidden @endif>{{ $favoriteCount }}</b></a>
+                <a class="iconbtn" href="{{ $me ? route('account') : route('customer.login') }}" aria-label="{{ $me ? 'حسابي' : 'تسجيل الدخول' }}">@icon('user')</a>
+            @endif
+            @if ($on['cart'])
+                <a class="cart" href="{{ route('cart') }}">@icon('cart') <span class="txt">السلة</span> <b class="num" data-cart-count>{{ $cartCount }}</b></a>
+            @endif
         </nav>
     </div>
 </header>
@@ -123,7 +140,7 @@
             <a href="{{ route('category', $c) }}" @class(['on' => request()->route('category')?->id === $c->id])>{{ $c->name }}</a>
         @endforeach
         <a class="hot" href="{{ route('products', ['offers' => 1]) }}">العروض</a>
-        <a href="{{ route('prescription') }}">اطلب بوصفة</a>
+        @if ($on['prescription'])<a href="{{ route('prescription') }}">اطلب بوصفة</a>@endif
     </div>
 </nav>
 
@@ -135,16 +152,17 @@
     <div class="wrap">
         <div>
             <h3>{{ $site['name'] }}</h3>
-            <p>صيدلية الحي في زيونة. نجهز طلبك بيد صيدلاني مختص ونوصله إلى باب بيتك في كل مناطق بغداد.</p>
+            <p>{{ $ui['footer_about'] }}</p>
         </div>
         <div>
             <h3>خدماتنا</h3>
             <ul>
-                <li><a href="{{ route('verify') }}">تحقق من دوائك</a></li>
-                <li><a href="{{ route('request') }}">اطلب منتجاً غير موجود</a></li>
-                <li><a href="{{ route('prescription') }}">اطلب بوصفة طبية</a></li>
-                <li><a href="{{ $consultUrl }}" target="_blank" rel="noopener" data-track="consult">استشر {{ $site['pharmacist_label'] }}</a></li>
-                <li><a href="{{ route('track') }}">تتبع طلبك</a></li>
+                @if ($on['verify'])<li><a href="{{ route('verify') }}">تحقق من دوائك</a></li>@endif
+                @if ($on['requests'])<li><a href="{{ route('request') }}">اطلب منتجاً غير موجود</a></li>@endif
+                @if ($on['prescription'])<li><a href="{{ route('prescription') }}">اطلب بوصفة طبية</a></li>@endif
+                @if ($on['consult'])<li><a href="{{ $consultUrl }}" target="_blank" rel="noopener" data-track="consult">استشر {{ $site['pharmacist_label'] }}</a></li>@endif
+                @if ($on['track'])<li><a href="{{ route('track') }}">تتبع طلبك</a></li>@endif
+                <li><a href="{{ route('products', ['offers' => 1]) }}">العروض</a></li>
             </ul>
         </div>
         <div>
@@ -161,28 +179,36 @@
                 <li>{{ $site['address'] }}</li>
                 <li>{{ $site['hours'] }}</li>
                 <li><a class="num" href="tel:{{ $site['phone'] }}" data-track="call">{{ $site['phone'] }}</a></li>
-                <li><a href="{{ route('faq') }}">الأسئلة الشائعة</a></li>
-                <li><a href="{{ route('contact') }}">راسلنا</a></li>
+                @if ($on['faq'])<li><a href="{{ route('faq') }}">الأسئلة الشائعة</a></li>@endif
+                @if ($on['contact'])<li><a href="{{ route('contact') }}">راسلنا</a></li>@endif
             </ul>
         </div>
         <div class="foot__note">
             <span>© <span class="num">{{ date('Y') }}</span> {{ $site['name'] }} · <a href="{{ route('privacy') }}">الخصوصية</a></span>
-            <span>المعلومات في الموقع لا تغني عن استشارة الطبيب أو الصيدلاني.</span>
+            <span>{{ $ui['footer_note'] }}</span>
         </div>
     </div>
 </footer>
 
+@if ($on['consult'])
 <a class="consult-float" href="{{ $consultUrl }}" target="_blank" rel="noopener" data-track="consult">@icon('whatsapp') استشر {{ $site['pharmacist_label'] }}</a>
+@endif
 
+@if ($on['tabbar'])
 <nav class="tabbar" aria-label="التنقل السريع">
     <a href="{{ route('home') }}" data-track="tab" @class(['on' => request()->routeIs('home')])>@icon('home') الرئيسية</a>
     <a href="{{ route('products') }}" data-track="tab" @class(['on' => request()->routeIs('products', 'category', 'product')])>@icon('pill') المنتجات</a>
-    <a href="{{ route('prescription') }}" data-track="tab" @class(['on' => request()->routeIs('prescription')])>@icon('upload') وصفة</a>
-    <a class="wa" href="{{ $consultUrl }}" target="_blank" rel="noopener" data-track="consult">@icon('whatsapp') استشارة</a>
-    <a href="{{ route('cart') }}" data-track="tab" @class(['on' => request()->routeIs('cart', 'checkout')])>@icon('cart') السلة <b class="num" data-cart-count @if (! $cartCount) hidden @endif>{{ $cartCount }}</b></a>
+    @if ($on['prescription'])<a href="{{ route('prescription') }}" data-track="tab" @class(['on' => request()->routeIs('prescription')])>@icon('upload') وصفة</a>@endif
+    @if ($on['consult'])<a class="wa" href="{{ $consultUrl }}" target="_blank" rel="noopener" data-track="consult">@icon('whatsapp') استشارة</a>@endif
+    @if ($on['cart'])
+        <a href="{{ route('cart') }}" data-track="tab" @class(['on' => request()->routeIs('cart', 'checkout')])>@icon('cart') السلة <b class="num" data-cart-count @if (! $cartCount) hidden @endif>{{ $cartCount }}</b></a>
+    @elseif ($on['accounts'])
+        <a href="{{ $me ? route('account') : route('customer.login') }}" data-track="tab" @class(['on' => request()->routeIs('account')])>@icon('user') حسابي</a>
+    @endif
 </nav>
+@endif
 
-<div class="toast @if(session('error')) bad @endif" role="status" aria-live="polite" data-toast data-cart-url="{{ route('cart') }}"
+<div class="toast @if(session('error')) bad @endif" role="status" aria-live="polite" data-toast data-cart-url="{{ url('/cart') }}"
      @if(session('ok') || session('error')) data-initial="{{ session('ok') ?? session('error') }}" @endif></div>
 <script src="{{ asset('js/shop.js') }}?v={{ filemtime(public_path('js/shop.js')) }}" defer></script>
 </body>
