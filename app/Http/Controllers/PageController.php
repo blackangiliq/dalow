@@ -38,14 +38,41 @@ class PageController extends Controller
         return back()->with('ok', 'وصلت رسالتك. سنتصل بك في أقرب وقت.');
     }
 
+    public function privacy()
+    {
+        return view('shop.privacy');
+    }
+
+    public function robots()
+    {
+        return response(implode("\n", [
+            'User-agent: *',
+            'Disallow: /admin',
+            'Disallow: /cart',
+            'Disallow: /checkout',
+            'Disallow: /account',
+            'Disallow: /track',
+            'Disallow: /order/',
+            'Disallow: /search/',
+            '',
+            'Sitemap: '.route('sitemap'),
+            '',
+        ]), 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+    }
+
     public function sitemap()
     {
-        $urls = collect([route('home'), route('products'), route('faq'), route('contact'), route('prescription')])
-            ->merge(Category::all()->map(fn ($c) => route('category', $c)))
-            ->merge(Product::active()->pluck('id')->map(fn ($id) => route('product', $id)));
+        $urls = collect([
+            [route('home'), null, '1.0'], [route('products'), null, '0.8'], [route('products', ['offers' => 1]), null, '0.8'],
+            [route('prescription'), null, '0.6'], [route('verify'), null, '0.6'], [route('request'), null, '0.5'],
+            [route('faq'), null, '0.6'], [route('contact'), null, '0.6'],
+        ])
+            ->merge(Category::all()->map(fn ($c) => [route('category', $c), $c->updated_at, '0.8']))
+            ->merge(Product::active()->get()->map(fn ($p) => [route('product', $p), $p->updated_at, '0.7']));
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-            .$urls->map(fn ($u) => '<url><loc>'.e($u).'</loc></url>')->implode('').'</urlset>';
+            .$urls->map(fn ($u) => '<url><loc>'.e($u[0]).'</loc>'.($u[1] ? '<lastmod>'.$u[1]->toDateString().'</lastmod>' : '').'<priority>'.$u[2].'</priority></url>')->implode('')
+            .'</urlset>';
 
         return response($xml, 200, ['Content-Type' => 'application/xml']);
     }

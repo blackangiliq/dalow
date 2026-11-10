@@ -12,7 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // الزبون غير المسجل يذهب لصفحة دخول الزبائن، وزائر لوحة التحكم لصفحة دخول المدير
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('admin', 'admin/*') ? route('login') : route('customer.login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

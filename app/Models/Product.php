@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Search\ProductSearch;
+use App\Services\DiscountNotifier;
 use App\Support\Util;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +24,39 @@ class Product extends Model
         'جهاز' => 'device', 'مستلزمات' => 'firstaid', 'غسول' => 'bottle', 'شامبو' => 'bottle',
         'حليب' => 'baby', 'أخرى' => 'box',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => ProductSearch::forget());
+        static::deleted(fn () => ProductSearch::forget());
+
+        // خصم جديد أو نزول في السعر: نبلغ من وضع المنتج في مفضلته
+        static::updated(function (Product $product) {
+            $before = (int) $product->getOriginal('price');
+            $hadOffer = $product->getOriginal('old_price') > $before;
+            if ($product->is_active && ($product->price < $before || (! $hadOffer && $product->discount > 0))) {
+                app(DiscountNotifier::class)->priceDropped($product, $before);
+            }
+        });
+    }
+
+    /** رابط المنتج يحمل اسمه لمحركات البحث: /product/6-augmentin-1g */
+    public function getRouteKey(): string
+    {
+        $slug = trim(preg_replace('/[^\p{L}\p{N}]+/u', '-', mb_strtolower($this->name)), '-');
+
+        return $this->id.($slug !== '' ? '-'.$slug : '');
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->whereKey((int) $value)->first();
+    }
+
+    public function favoredBy()
+    {
+        return $this->belongsToMany(Customer::class, 'favorites')->withTimestamps();
+    }
 
     public function category()
     {

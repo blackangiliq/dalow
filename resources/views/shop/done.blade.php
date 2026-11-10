@@ -1,5 +1,6 @@
 @extends('layouts.shop')
 @section('title', 'تم استلام طلبك')
+@section('noindex', '1')
 
 @section('content')
 <div class="page wrap">

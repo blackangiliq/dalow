@@ -19,10 +19,11 @@
     <div class="hint"><strong>{{ $failedStaff }} موظف لم يصله آخر إشعار.</strong> راجع السبب في <a href="{{ route('admin.staff.index') }}" style="text-decoration:underline">صفحة الموظفين</a>.</div>
 @endif
 
-<div class="stats stats--5">
+<div class="stats stats--6">
     <a class="stat stat--hot" href="{{ route('admin.orders.index', ['status' => 'new']) }}"><span>طلبات تنتظر التأكيد</span><b class="num" data-new-count>{{ $newOrders }}</b><small>اضغط لعرضها</small></a>
     <div class="stat"><span>طلبات اليوم</span><b class="num">{{ $todayOrders }}</b><small>@iqd($todaySales)</small></div>
     <div class="stat"><span>مبيعات الشهر المسلّمة</span><b>{{ number_format($monthSales) }}</b><small>دينار عراقي</small></div>
+    <a class="stat" href="{{ route('admin.analytics') }}"><span>زوار اليوم</span><b class="num">{{ $visitorsToday }}</b><small>{{ $visitorsMonth }} هذا الشهر</small></a>
     <a class="stat" href="{{ route('admin.messages.index') }}"><span>رسائل غير مقروءة</span><b class="num">{{ $unread }}</b><small>من صفحة تواصل معنا</small></a>
     <a class="stat" href="{{ route('admin.products.index', ['stock' => 'low']) }}"><span>منتجات قاربت على النفاد</span><b class="num">{{ $lowStock->count() }}{{ $lowStock->count() >= 6 ? '+' : '' }}</b><small>من {{ $productCount }} منتج</small></a>
 </div>

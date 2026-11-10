@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Category;
 use App\Models\Faq;
 use App\Models\Product;
+use App\Models\SearchSynonym;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -132,6 +133,26 @@ class DatabaseSeeder extends Seeder
             ['هل يمكن إرجاع أو تبديل الطلب؟', 'يمكنك رفض الطلب عند الاستلام إذا لم يطابق ما طلبته. بعد الاستلام لا تُرجع الأدوية حفاظاً على سلامتها، أما الأجهزة فتُبدَّل خلال 3 أيام إذا كان فيها عيب.'],
         ] as $i => [$question, $answer]) {
             Faq::create(['question' => $question, 'answer' => $answer, 'sort' => $i + 1]);
+        }
+
+        // مرادفات تساعد من يبحث بالعرَض أو بالاسم الشائع
+        foreach ([
+            ['صداع، وجع راس، وجع رأس', 'paracetamol, ibuprofen'],
+            ['حرارة، سخونة، حمى', 'paracetamol'],
+            ['حموضة، حرقة، ارتجاع', 'omeprazole, esomeprazole, gaviscon'],
+            ['حساسية، حكة، رشح', 'loratadine, cetirizine'],
+            ['سعال، كحة، قحة', 'prospan'],
+            ['مغص، تقلصات', 'buscopan'],
+            ['اسهال', 'imodium'],
+            ['مضاد حيوي، انتي بايوتك', 'amoxicillin, azithromycin'],
+            ['فقر دم، حديد', 'feroglobin'],
+            ['مسكن', 'paracetamol, ibuprofen, diclofenac'],
+            ['ضغط الدم', 'bisoprolol, amlodipine, omron'],
+            ['سكر، سكري', 'metformin, accu'],
+            ['واقي شمس، صن بلوك', 'photoderm'],
+            ['حفاضات', 'pampers'],
+        ] as [$term, $expandsTo]) {
+            SearchSynonym::create(['term' => $term, 'expands_to' => $expandsTo]);
         }
 
         // موظفون تجريبيون، استبدلهم بأرقام موظفيك من لوحة التحكم

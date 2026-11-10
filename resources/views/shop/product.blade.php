@@ -1,7 +1,9 @@
 @extends('layouts.shop')
-@section('title', $product->name)
+@section('title', $product->name.': السعر والتوصيل في بغداد')
+@section('ogType', 'product')
+@if ($product->image_url) @section('ogImage', $product->image_url) @endif
 @section('bodyClass', $product->stock > 0 ? 'has-buybar' : '')
-@section('description', \Illuminate\Support\Str::limit($product->name.' '.$product->scientific_name.'. '.$product->description, 150))
+@section('description', $product->name.($product->scientific_name ? ' ('.$product->scientific_name.')' : '').' بسعر '.number_format($product->price).' دينار من '.$site['name'].'. '.$product->description.' توصيل لكل مناطق بغداد والدفع عند الاستلام.')
 
 @section('content')
 <div class="page wrap">
@@ -11,7 +13,7 @@
         <span>{{ $product->name }}</span>
     </nav>
 
-    <div class="pview">
+    <div class="pview" data-section="details">
         <div class="pview__media" style="--tint: {{ $product->tint }}">
             @if ($product->image_url)
                 <img src="{{ $product->image_url }}" alt="{{ $product->name }}">
@@ -36,6 +38,10 @@
                 </dd>
             </dl>
 
+            @if ($soldWeek >= 3)
+                <div class="proof">@icon('fire') طُلب <span class="num">{{ $soldWeek }}</span> مرة هذا الأسبوع</div>
+            @endif
+
             <div class="price price--lg">
                 @if ($product->discount)<s>@iqd($product->old_price)</s>@endif
                 <b>@iqd($product->price)</b>
@@ -53,19 +59,28 @@
                         <input type="number" name="qty" value="1" min="1" max="{{ min(99, $product->stock) }}" aria-label="الكمية">
                         <button type="button" data-step="-1" aria-label="إنقاص الكمية">−</button>
                     </div>
-                    <button class="btn">@icon('cart') أضف للسلة</button>
+                    <button class="btn btn--buy" data-track="add-to-cart">@icon('cart') أضف للسلة</button>
                     @if ($site['whatsapp'])
-                        <a class="btn btn--wa-line" href="{{ $waOrder }}" target="_blank" rel="noopener">@icon('whatsapp') اطلب عبر واتساب</a>
+                        <a class="btn btn--wa-line" href="{{ $waOrder }}" target="_blank" rel="noopener" data-track="wa-order">@icon('whatsapp') اطلب عبر واتساب</a>
                     @endif
                 </form>
             @else
-                <div class="note note--bad">@icon('alert') <p>هذا المنتج غير متوفر حالياً. اسأل {{ $site['pharmacist_label'] }} عن موعد توفره أو عن بديل مناسب.</p></div>
+                <div class="note note--bad">@icon('alert') <p>هذا المنتج غير متوفر حالياً. <a class="more" href="{{ route('request', ['name' => $product->name]) }}" data-track="request">اطلب توفيره</a> وسنتصل بك عند وصوله، أو اسأل {{ $site['pharmacist_label'] }} عن بديل مناسب.</p></div>
             @endif
 
-            <div class="ask">
+            <div class="sharebar">
+                <form method="post" action="{{ route('favorite', $product) }}" class="js-fav" style="flex:1 1 auto;display:flex">
+                    @csrf
+                    <button @class(['btn', 'btn--fav', 'on' => $isFavorite]) style="flex:1" data-track="favorite" data-fav-label>@icon('heart') <span>{{ $isFavorite ? 'سنعلمك عند انخفاض السعر' : 'أعلمني عند انخفاض السعر' }}</span></button>
+                </form>
+                <a class="btn btn--ghost" target="_blank" rel="noopener" data-track="share"
+                   href="https://wa.me/?text={{ rawurlencode($product->name.' بسعر '.\App\Support\Util::money($product->price).' من '.$site['name']."\n".route('product', $product)) }}">@icon('share') شارك المنتج</a>
+            </div>
+
+            <div class="ask" data-section="ask">
                 <span class="ask__ico">@icon('whatsapp')</span>
                 <div><b>عندك سؤال عن هذا المنتج؟</b><span>الجرعة، طريقة الاستعمال، أو البديل المناسب. الاستشارة مجانية.</span></div>
-                <a class="btn btn--wa" href="{{ \App\Support\Util::consultLink($product) }}" target="_blank" rel="noopener">استشر {{ $site['pharmacist_label'] }}</a>
+                <a class="btn btn--wa" href="{{ \App\Support\Util::consultLink($product) }}" target="_blank" rel="noopener" data-track="consult">استشر {{ $site['pharmacist_label'] }}</a>
             </div>
 
             @if ($product->requires_prescription)
@@ -82,12 +97,23 @@
 @if ($product->stock > 0)
 <div class="buybar">
     <div class="price"><b>@iqd($product->price)</b></div>
-    <button class="btn" form="buyform">@icon('cart') أضف للسلة</button>
+    <button class="btn btn--buy" form="buyform" data-track="add-to-cart">@icon('cart') أضف للسلة</button>
 </div>
 @endif
 
+@if ($together->count())
+<section class="band" data-section="together">
+    <div class="wrap">
+        <div class="band__head"><div><h2>يُشترى معه غالباً</h2><p>من طلبات زبائن الصيدلية.</p></div></div>
+        <div class="grid">
+            @foreach ($together as $p) @include('partials.product-card', ['p' => $p]) @endforeach
+        </div>
+    </div>
+</section>
+@endif
+
 @if ($alternatives->count())
-<section class="band">
+<section class="band" data-section="alternatives">
     <div class="wrap">
         <div class="band__head">
             <div>
@@ -103,7 +129,7 @@
 @endif
 
 @if ($related->count())
-<section class="band band--mist">
+<section class="band band--mist" data-section="related">
     <div class="wrap">
         <div class="band__head"><h2>من نفس القسم</h2></div>
         <div class="grid">
@@ -112,4 +138,48 @@
     </div>
 </section>
 @endif
+@if ($recent->count())
+<section class="band" data-section="recent">
+    <div class="wrap">
+        <div class="band__head"><h2>شاهدته مؤخراً</h2></div>
+        <div class="grid">
+            @foreach ($recent as $p) @include('partials.product-card', ['p' => $p]) @endforeach
+        </div>
+    </div>
+</section>
+@endif
 @endsection
+
+@push('head')
+<script type="application/ld+json">{!! json_encode([
+    '@context' => 'https://schema.org',
+    '@graph' => [
+        array_filter([
+            '@type' => 'Product',
+            'name' => $product->name,
+            'description' => $product->description ?: $product->name,
+            'image' => $product->image_url ?: asset('og-image.png'),
+            'sku' => (string) $product->id,
+            'gtin' => $product->barcode ?: null,
+            'brand' => $product->company ? ['@type' => 'Brand', 'name' => $product->company] : null,
+            'category' => $product->category?->name,
+            'offers' => [
+                '@type' => 'Offer',
+                'url' => route('product', $product),
+                'priceCurrency' => 'IQD',
+                'price' => $product->price,
+                'availability' => 'https://schema.org/'.($product->stock > 0 ? 'InStock' : 'OutOfStock'),
+                'seller' => ['@id' => url('/').'#pharmacy'],
+            ],
+        ]),
+        [
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => array_values(array_filter([
+                ['@type' => 'ListItem', 'position' => 1, 'name' => 'الرئيسية', 'item' => route('home')],
+                $product->category ? ['@type' => 'ListItem', 'position' => 2, 'name' => $product->category->name, 'item' => route('category', $product->category)] : null,
+                ['@type' => 'ListItem', 'position' => $product->category ? 3 : 2, 'name' => $product->name],
+            ])),
+        ],
+    ],
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+@endpush

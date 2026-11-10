@@ -42,6 +42,21 @@ class StaffNotifier
         ], fn ($l) => $l !== null)));
     }
 
+    /** @return array{sent: int, failed: int} */
+    public function productRequested(\App\Models\ProductRequest $request): array
+    {
+        return $this->broadcast(implode("\n", array_filter([
+            '🔎 <b>طلب توفير منتج غير موجود في الموقع</b>',
+            '',
+            '💊 '.e($request->product_name),
+            $request->details ? '📝 '.e($request->details) : null,
+            '',
+            '👤 '.e($request->name),
+            '📞 '.e($request->phone),
+            $request->image ? '📎 مرفقة صورة، تجدها في لوحة التحكم.' : null,
+        ], fn ($l) => $l !== null)));
+    }
+
     /**
      * يرسل رسالة لموظف واحد ويحفظ نتيجة التسليم عليه.
      *

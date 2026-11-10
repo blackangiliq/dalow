@@ -26,6 +26,7 @@ class CheckoutController extends Controller
             'subtotal' => $items->sum('line'),
             'areas' => Util::areas(),
             'needsRx' => $items->contains(fn ($i) => $i->product->requires_prescription),
+            'customer' => auth('customer')->user(),
         ]);
     }
 
@@ -54,6 +55,7 @@ class CheckoutController extends Controller
             $fee = Util::deliveryFee($data['area'], $subtotal);
             $order = Order::create($data + [
                 'number' => Order::newNumber(),
+                'customer_id' => auth('customer')->id(),
                 'type' => 'cart',
                 'prescription_image' => $request->file('prescription')?->store('prescriptions', 'local'),
                 'subtotal' => $subtotal,
@@ -75,7 +77,7 @@ class CheckoutController extends Controller
 
     public function prescriptionForm()
     {
-        return view('shop.prescription', ['areas' => Util::areas()]);
+        return view('shop.prescription', ['areas' => Util::areas(), 'customer' => auth('customer')->user()]);
     }
 
     public function prescriptionStore(Request $request, StaffNotifier $notifier)
@@ -83,6 +85,7 @@ class CheckoutController extends Controller
         $data = $this->validateCustomer($request, true);
         $order = Order::create($data + [
             'number' => Order::newNumber(),
+            'customer_id' => auth('customer')->id(),
             'type' => 'prescription',
             'prescription_image' => $request->file('prescription')->store('prescriptions', 'local'),
         ]);

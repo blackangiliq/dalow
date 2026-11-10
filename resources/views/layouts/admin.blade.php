@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex">
     <title>@yield('title') | لوحة تحكم صيدلية الدلو</title>
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <script>(function(){try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}})()</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -32,17 +33,25 @@
         </a>
         <nav aria-label="القائمة">
             <a href="{{ route('admin.dashboard') }}" @class(['on' => request()->routeIs('admin.dashboard')])>@icon('home') الرئيسية</a>
+            <a href="{{ route('admin.analytics') }}" @class(['on' => request()->routeIs('admin.analytics')])>@icon('chart') الإحصاءات والزوار</a>
+            <span class="side__label">المبيعات</span>
             <a href="{{ route('admin.orders.index') }}" @class(['on' => request()->routeIs('admin.orders.*')])>@icon('list') الطلبات <span class="count num" data-new-count @if (! $pendingOrders) hidden @endif>{{ $pendingOrders }}</span></a>
+            <a href="{{ route('admin.requests.index') }}" @class(['on' => request()->routeIs('admin.requests.*')])>@icon('search') طلبات توفير منتج @if ($newRequests)<span class="count num">{{ $newRequests }}</span>@endif</a>
+            <a href="{{ route('admin.price-alerts') }}" @class(['on' => request()->routeIs('admin.price-alerts')])>@icon('bell') تنبيهات السعر</a>
+            <a href="{{ route('admin.customers.index') }}" @class(['on' => request()->routeIs('admin.customers.*')])>@icon('user') الزبائن</a>
+            <a href="{{ route('admin.messages.index') }}" @class(['on' => request()->routeIs('admin.messages.*')])>@icon('chat') الرسائل <span class="count num" data-unread-count @if (! $unreadMessages) hidden @endif>{{ $unreadMessages }}</span></a>
+            <span class="side__label">المنتجات</span>
             <a href="{{ route('admin.products.index') }}" @class(['on' => request()->routeIs('admin.products.*')])>@icon('pill') المنتجات</a>
             <a href="{{ route('admin.import') }}" @class(['on' => request()->routeIs('admin.import*')])>@icon('sheet') استيراد من Excel</a>
             <a href="{{ route('admin.categories.index') }}" @class(['on' => request()->routeIs('admin.categories.*')])>@icon('tag') الأقسام</a>
-            <a href="{{ route('admin.messages.index') }}" @class(['on' => request()->routeIs('admin.messages.*')])>@icon('chat') الرسائل <span class="count num" data-unread-count @if (! $unreadMessages) hidden @endif>{{ $unreadMessages }}</span></a>
+            <span class="side__label">الإعداد</span>
             <a href="{{ route('admin.faqs.index') }}" @class(['on' => request()->routeIs('admin.faqs.*')])>@icon('info') الأسئلة الشائعة</a>
             <a href="{{ route('admin.staff.index') }}" @class(['on' => request()->routeIs('admin.staff.*')])>@icon('users') الموظفون</a>
             <a href="{{ route('admin.telegram') }}" @class(['on' => request()->routeIs('admin.telegram*')])>@icon('send') إشعارات تيليجرام</a>
             <a href="{{ route('admin.settings') }}" @class(['on' => request()->routeIs('admin.settings')])>@icon('gear') الإعدادات</a>
         </nav>
         <div class="side__end">
+            <button type="button" data-theme-toggle><span class="theme-moon">@icon('moon')</span><span class="theme-sun">@icon('sun')</span> <span class="theme-moon">الوضع الداكن</span><span class="theme-sun">الوضع الفاتح</span></button>
             <a href="{{ route('home') }}" target="_blank" rel="noopener">@icon('cart') عرض المتجر</a>
             <form method="post" action="{{ route('admin.logout') }}">@csrf <button>@icon('logout') تسجيل الخروج</button></form>
         </div>
@@ -63,6 +72,12 @@
 <div class="livetoast" role="status" aria-live="polite" data-live></div>
 <script>
 (() => {
+    document.querySelectorAll('[data-theme-toggle]').forEach((b) => b.addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('theme', next); } catch {}
+    }));
+
     // القائمة المنزلقة في التابلت والموبايل
     const toggles = document.querySelectorAll('[data-nav-toggle]');
     toggles.forEach((b) => b.addEventListener('click', () => {

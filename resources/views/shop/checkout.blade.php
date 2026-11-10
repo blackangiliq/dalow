@@ -1,5 +1,6 @@
 @extends('layouts.shop')
 @section('title', 'إتمام الطلب')
+@section('noindex', '1')
 
 @section('content')
 <div class="page wrap">
@@ -43,7 +44,10 @@
                 <div class="total"><dt>المجموع</dt><dd data-total-out>@iqd($subtotal)</dd></div>
             </dl>
             <div class="note note--info" style="background:#fff">@icon('cash') <p>الدفع نقداً عند الاستلام.</p></div>
-            <button class="btn btn--block" style="margin-top:18px">تأكيد الطلب</button>
+            <button class="btn btn--buy btn--block" style="margin-top:18px">تأكيد الطلب</button>
+            @unless ($customer)
+                <p class="line__meta" style="margin-top:10px;text-align:center"><a class="more" href="{{ route('customer.login') }}">سجّل الدخول</a> لتُملأ بياناتك تلقائياً ويُحفظ الطلب في حسابك.</p>
+            @endunless
         </aside>
     </form>
 </div>

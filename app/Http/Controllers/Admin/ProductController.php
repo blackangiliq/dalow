@@ -41,13 +41,21 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
-        return view('admin.products.form', ['product' => $product, 'categories' => Category::orderBy('sort')->get()]);
+        return view('admin.products.form', ['product' => $product, 'categories' => Category::orderBy('sort')->get(), 'waiting' => $product->favoredBy()->count()]);
     }
 
     public function update(Request $request, Product $product)
     {
+        $before = $product->price;
         $product->update($this->data($request));
         $this->saveImage($request, $product);
+
+        // نزل السعر وهناك من طلب التنبيه: نعرض للمدير أرقامهم ليذكّرهم
+        $waiting = $product->favoredBy()->count();
+        if ($product->price < $before && $waiting) {
+            return redirect()->route('admin.price-alerts', ['product' => $product->id])
+                ->with('ok', "نزل سعر «{$product->name}» وعليه {$waiting} طلب تنبيه. وصلهم إشعار في حساباتهم، وهذه أرقامهم لتذكيرهم.");
+        }
 
         return redirect()->route('admin.products.index')->with('ok', 'حُفظت تعديلات «'.$product->name.'»');
     }
@@ -87,6 +95,7 @@ class ProductController extends Controller
             'scientific_name' => 'nullable|string|max:160',
             'company' => 'nullable|string|max:120',
             'barcode' => 'nullable|string|max:60',
+            'keywords' => 'nullable|string|max:500',
             'category_id' => 'nullable|exists:categories,id',
             'dosage_form' => 'nullable|string|max:40',
             'description' => 'nullable|string|max:3000',

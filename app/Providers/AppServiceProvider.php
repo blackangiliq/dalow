@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
         Paginator::defaultView('partials.pagination');
 
         // حدود مستقلة لكل نوع من الطلبات حتى لا يستهلك البحث حصة إرسال الطلب أو تسجيل الدخول
-        foreach (['orders' => 6, 'login' => 6, 'track' => 20, 'suggest' => 90, 'contact' => 4] as $name => $perMinute) {
+        foreach (['orders' => 6, 'login' => 6, 'track' => 20, 'suggest' => 90, 'contact' => 4, 'events' => 60] as $name => $perMinute) {
             RateLimiter::for($name, fn (Request $request) => Limit::perMinute($perMinute)->by($name.'|'.$request->ip()));
         }
 
@@ -52,16 +52,30 @@ class AppServiceProvider extends ServiceProvider
             $shared ??= [
                 'navCategories' => Category::orderBy('sort')->get(),
                 'cartCount' => Cart::count(),
-                'site' => collect(['name', 'address', 'phone', 'whatsapp', 'hours', 'map_url', 'free_delivery_over', 'pharmacist_label', 'email', 'facebook_url', 'instagram_url', 'capsules'])
+                'site' => collect(['name', 'address', 'phone', 'whatsapp', 'hours', 'map_url', 'free_delivery_over', 'pharmacist_label', 'email', 'facebook_url', 'instagram_url', 'capsules', 'google_verification', 'promo_text'])
                     ->mapWithKeys(fn ($k) => [$k => Setting::get($k)]),
                 'consultUrl' => Util::consultLink(null, url()->current()),
             ];
+            // بيانات الزبون المسجل: تُحسب مرة واحدة في الطلب
+            static $account;
+            if ($account === null) {
+                $customer = auth('customer')->user();
+                $favoriteIds = $customer ? $customer->favorites()->pluck('products.id')->all() : [];
+                $account = [
+                    'me' => $customer,
+                    'favoriteIds' => $favoriteIds,
+                    'favoriteCount' => count($favoriteIds),
+                    'unreadCount' => $customer?->notifications()->whereNull('read_at')->count() ?? 0,
+                ];
+            }
+            $shared = $shared + $account;
             $view->with($shared);
         });
 
         View::composer('layouts.admin', fn ($view) => $view->with([
             'pendingOrders' => Order::where('status', 'new')->count(),
             'unreadMessages' => ContactMessage::where('is_read', false)->count(),
+            'newRequests' => \App\Models\ProductRequest::where('status', 'new')->count(),
         ]));
     }
 }

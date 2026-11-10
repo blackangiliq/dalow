@@ -45,6 +45,8 @@ class DashboardController extends Controller
             'recipients' => Staff::where('notify', true)->count(),
             'failedStaff' => Staff::where('notify', true)->whereNotNull('telegram_error')->count(),
             'productCount' => Product::count(),
+            'visitorsToday' => \App\Models\Visit::where('day', today())->distinct('visitor')->count('visitor'),
+            'visitorsMonth' => \App\Models\Visit::where('day', '>=', today()->startOfMonth())->distinct('visitor')->count('visitor'),
         ]);
     }
 

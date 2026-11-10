@@ -59,6 +59,22 @@
     </div>
 
     <div class="card">
+        <h2>التسويق ومحركات البحث</h2>
+        <div class="form">
+            <div class="field">
+                <label for="promo_text">نص شريط العرض أعلى الموقع</label>
+                <input id="promo_text" type="text" name="promo_text" value="{{ old('promo_text', trim((string) $values['promo_text'])) }}" placeholder="توصيل مجاني للطلبات فوق 50,000 دينار">
+                <small>يظهر في أعلى كل صفحة ويقود إلى العروض. اتركه فارغاً لإخفائه.</small>
+            </div>
+            <div class="field">
+                <label for="google_verification">رمز التحقق من Google Search Console</label>
+                <input id="google_verification" type="text" name="google_verification" dir="ltr" value="{{ old('google_verification', $values['google_verification']) }}">
+                <small>من <a href="https://search.google.com/search-console" target="_blank" rel="noopener" style="text-decoration:underline">Search Console</a> اختر «علامة HTML» والصق قيمة content فقط، ثم أرسل خريطة الموقع: <code>{{ route('sitemap') }}</code></small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
         <h2>مظهر الموقع</h2>
         <label class="check"><input type="checkbox" name="capsules" value="1" @checked(old('capsules', $values['capsules']))> تناثر الكبسولات عند النقر أو اللمس في أي مكان من الموقع</label>
         <p class="card__sub" style="margin:8px 0 0">يتوقف تلقائياً عند من فعّل «تقليل الحركة» في جهازه.</p>

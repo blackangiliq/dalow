@@ -1,5 +1,6 @@
 @extends('layouts.shop')
 @section('title', 'السلة')
+@section('noindex', '1')
 
 @section('content')
 <div class="page wrap">
@@ -50,19 +51,20 @@
                     <div><dt>التوصيل</dt><dd>يحسب حسب المنطقة</dd></div>
                 </dl>
                 @php $free = (int) $site['free_delivery_over']; @endphp
-                @if ($free && $subtotal < $free)
-                    <p class="line__meta" style="margin-top:10px">أضف بقيمة @iqd($free - $subtotal) ليصبح التوصيل مجانياً.</p>
-                @elseif ($free)
-                    <p class="line__meta" style="margin-top:10px;color:var(--ok)">طلبك مؤهل للتوصيل المجاني.</p>
+                @if ($free)
+                    <div class="freebar">
+                        <i style="--w: {{ min(100, round($subtotal * 100 / $free)) }}%"></i>
+                        <p>@if ($subtotal < $free) أضف بقيمة @iqd($free - $subtotal) ليصبح التوصيل مجانياً. @else طلبك مؤهل للتوصيل المجاني. @endif</p>
+                    </div>
                 @endif
-                <a class="btn btn--block" style="margin-top:18px" href="{{ route('checkout') }}">إتمام الطلب</a>
+                <a class="btn btn--buy btn--block" style="margin-top:18px" href="{{ route('checkout') }}">إتمام الطلب</a>
                 @if ($site['whatsapp'])
                     @php
                         $waText = "مرحباً، أريد طلب هذه المواد من موقع {$site['name']}:\n"
                             .$items->map(fn ($i) => "• {$i->product->name} × {$i->qty} = ".\App\Support\Util::money($i->line))->implode("\n")
                             ."\n\nمجموع المواد: ".\App\Support\Util::money($subtotal)."\n\nالاسم: \nالمنطقة والعنوان: ";
                     @endphp
-                    <a class="btn btn--wa-line btn--block" style="margin-top:10px" target="_blank" rel="noopener" href="{{ \App\Support\Util::wa($site['whatsapp'], $waText) }}">@icon('whatsapp') اطلب عبر واتساب</a>
+                    <a class="btn btn--wa-line btn--block" style="margin-top:10px" target="_blank" rel="noopener" data-track="wa-order" href="{{ \App\Support\Util::wa($site['whatsapp'], $waText) }}">@icon('whatsapp') اطلب عبر واتساب</a>
                 @endif
                 <a class="btn btn--ghost btn--block" style="margin-top:10px" href="{{ route('products') }}">متابعة التسوق</a>
             </aside>

@@ -47,6 +47,128 @@
     }
   });
 
+  // الوضع الداكن والفاتح
+  document.querySelectorAll('[data-theme-toggle]').forEach((btn) => btn.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch {}
+  }));
+
+  // المفضلة (أعلمني عند انخفاض السعر) بدون إعادة تحميل الصفحة
+  document.addEventListener('submit', async (e) => {
+    const form = e.target.closest('.js-fav');
+    if (!form) return;
+    e.preventDefault();
+    const btn = form.querySelector('button');
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: new FormData(form),
+      });
+      const data = await res.json();
+      if (res.status === 401 && data.login) { location.href = data.login; return; }
+      if (!res.ok) throw new Error();
+      btn.classList.toggle('on', data.on);
+      const label = btn.querySelector('[data-fav-label] span, span');
+      if (btn.hasAttribute('data-fav-label') && label) label.textContent = data.on ? 'سنعلمك عند انخفاض السعر' : 'أعلمني عند انخفاض السعر';
+      document.querySelectorAll('[data-fav-count]').forEach((el) => { el.textContent = data.count; el.hidden = !data.count; });
+      showToast(data.message);
+    } catch {
+      showToast('تعذر الحفظ. تحقق من الاتصال وحاول مرة أخرى.', true);
+    }
+  });
+
+  // ---------- إحصاءات مجهولة: ما يُنقر عليه وما يُشاهَد ----------
+  const trackUrl = document.body.dataset.trackUrl;
+  const csrf = document.querySelector('meta[name=csrf-token]')?.content;
+  if (trackUrl && csrf) {
+    let queue = [];
+    const flush = () => {
+      if (!queue.length) return;
+      const data = new FormData();
+      data.append('_token', csrf);
+      data.append('events', JSON.stringify(queue.splice(0, 25)));
+      if (!navigator.sendBeacon || !navigator.sendBeacon(trackUrl, data)) {
+        fetch(trackUrl, { method: 'POST', body: data, keepalive: true }).catch(() => {});
+      }
+    };
+    // النقرات على العناصر المعلّمة
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('[data-track]');
+      if (!el) return;
+      queue.push({ k: 'click', n: el.dataset.track });
+      if (queue.length >= 5) flush();
+    }, true);
+    document.addEventListener('submit', (e) => {
+      const el = e.target.closest('form[data-track]');
+      if (el) queue.push({ k: 'click', n: el.dataset.track });
+    }, true);
+    // زمن بقاء كل قسم ظاهراً أمام الزائر: مؤشر على ما يلفت انتباهه
+    const seen = new Map();
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        const now = performance.now();
+        entries.forEach((entry) => {
+          const state = seen.get(entry.target);
+          if (entry.isIntersecting && state.since === null) state.since = now;
+          else if (!entry.isIntersecting && state.since !== null) { state.total += now - state.since; state.since = null; }
+        });
+      }, { threshold: 0.4 });
+      document.querySelectorAll('[data-section]').forEach((el) => { seen.set(el, { since: null, total: 0 }); io.observe(el); });
+    }
+    const report = () => {
+      const now = performance.now();
+      seen.forEach((state, el) => {
+        const total = state.total + (state.since !== null ? now - state.since : 0);
+        state.total = 0;
+        state.since = state.since !== null ? now : null;
+        if (total >= 2000) queue.push({ k: 'dwell', n: el.dataset.section, v: Math.round(total / 1000) });
+      });
+      flush();
+    };
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') report(); });
+    addEventListener('pagehide', report);
+  }
+
+  // مسح الباركود بكاميرا الموبايل (في المتصفحات التي تدعمه)
+  const scanBtn = document.querySelector('[data-scan]');
+  if (scanBtn && 'BarcodeDetector' in window && navigator.mediaDevices?.getUserMedia) {
+    const box = document.querySelector('[data-scanner]');
+    const video = box.querySelector('video');
+    const note = document.querySelector('[data-scan-note]');
+    scanBtn.hidden = false;
+    let stream = null;
+    const stop = () => { stream?.getTracks().forEach((t) => t.stop()); stream = null; box.hidden = true; };
+    scanBtn.addEventListener('click', async () => {
+      if (stream) { stop(); return; }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = stream;
+        box.hidden = false;
+        await video.play();
+        const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] });
+        const tick = async () => {
+          if (!stream) return;
+          try {
+            const codes = await detector.detect(video);
+            if (codes.length) {
+              document.querySelector('#code').value = codes[0].rawValue;
+              stop();
+              document.querySelector('#code').form.submit();
+              return;
+            }
+          } catch {}
+          setTimeout(tick, 350);
+        };
+        tick();
+      } catch {
+        stop();
+        note.textContent = 'لم نتمكن من فتح الكاميرا. اسمح للموقع باستعمالها، أو اكتب الأرقام يدوياً.';
+      }
+    });
+  }
+
   // اقتراحات البحث
   document.querySelectorAll('form[data-suggest]').forEach((form) => {
     const input = form.querySelector('input[type=search]');

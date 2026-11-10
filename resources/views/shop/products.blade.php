@@ -1,5 +1,9 @@
 @extends('layouts.shop')
-@section('title', $category->name ?? ($q !== '' ? 'نتائج البحث عن '.$q : 'كل المنتجات'))
+@section('title', $category ? $category->name.': الأسعار والتوصيل في بغداد' : ($q !== '' ? 'نتائج البحث عن '.$q : (request('offers') ? 'عروض وخصومات الأدوية' : 'كل الأدوية والمنتجات')))
+@section('description', $category ? 'تسوق '.$category->name.' من '.$site['name'].' بأسعار واضحة وتوصيل لكل مناطق بغداد والدفع عند الاستلام.' : '')
+@if ($q !== '' || request()->hasAny(['sort', 'available', 'page']))
+    @section('noindex', '1')
+@endif
 
 @section('content')
 <div class="page wrap">
@@ -14,6 +18,16 @@
         @endif
     </h1>
     <p class="page__sub"><span class="num">{{ $products->total() }}</span> منتج</p>
+
+    @if ($search && $products->total())
+        @if ($search['corrected'])
+            <div class="searchnote">@icon('info') <span>لم نجد «{{ $q }}» حرفياً، فعرضنا أقرب ما يطابقها: <strong dir="ltr">{{ $search['corrected'] }}</strong></span></div>
+        @elseif ($search['via'] === 'synonym')
+            <div class="searchnote">@icon('info') <span>هذه منتجات يبحث عنها من يكتب «{{ $q }}». استشر {{ $site['pharmacist_label'] }} قبل اختيار الدواء: <a href="{{ $consultUrl }}" target="_blank" rel="noopener" data-track="consult">اسألها الآن</a></span></div>
+        @elseif ($search['via'] === 'partial')
+            <div class="searchnote">@icon('info') <span>لم نجد منتجاً يطابق كل كلمات بحثك، فعرضنا ما يطابق بعضها.</span></div>
+        @endif
+    @endif
 
     <form class="filters" method="get">
         @if ($q !== '')<input type="hidden" name="q" value="{{ $q }}">@endif
@@ -40,10 +54,20 @@
     @else
         <div class="empty">
             @icon('search')
-            <h2>لم نجد منتجاً مطابقاً</h2>
-            <p>جرّب كتابة الاسم العلمي أو جزء من الاسم. وإذا كان الدواء في وصفتك، ارسل صورتها ونحن نوفره لك.</p>
-            <a class="btn" href="{{ route('prescription') }}">ارسل الوصفة</a>
-            <a class="btn btn--ghost" href="{{ route('products') }}">كل المنتجات</a>
+            @if ($q !== '')
+                <h2>«{{ $q }}» غير موجود في الموقع حالياً</h2>
+                <p>نستطيع توفيره لك. اطلبه بضغطة وسنبحث عنه في المذاخر ونتصل بك، أو ارسل صورة الوصفة.</p>
+                <a class="btn btn--buy" href="{{ route('request', ['name' => $q]) }}" data-track="request">اطلب توفير «{{ \Illuminate\Support\Str::limit($q, 30) }}»</a>
+                <a class="btn btn--wa" href="{{ \App\Support\Util::wa(\App\Support\Util::pharmacistNumber(), 'مرحباً، أنا قادم من موقع '.$site['name'].' وأبحث عن: '.$q) }}" target="_blank" rel="noopener" data-track="consult">@icon('whatsapp') اسأل {{ $site['pharmacist_label'] }}</a>
+                <a class="btn btn--ghost" href="{{ route('prescription') }}">ارسل الوصفة</a>
+                @if ($trending)
+                    <div class="chips"><span>جرّب أيضاً:</span>@foreach ($trending as $term)<a href="{{ route('products', ['q' => $term]) }}" data-track="chip">{{ $term }}</a>@endforeach</div>
+                @endif
+            @else
+                <h2>لا توجد منتجات هنا حالياً</h2>
+                <p>جرّب إلغاء التصفية أو تصفح كل المنتجات.</p>
+                <a class="btn" href="{{ route('products') }}">كل المنتجات</a>
+            @endif
         </div>
     @endif
 </div>

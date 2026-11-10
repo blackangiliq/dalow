@@ -14,6 +14,12 @@ class Category extends Model
         'firstaid' => 'إسعافات', 'drop' => 'قطرات',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(fn () => \App\Search\ProductSearch::forget());
+        static::deleted(fn () => \App\Search\ProductSearch::forget());
+    }
+
     public function products()
     {
         return $this->hasMany(Product::class);

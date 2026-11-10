@@ -1,5 +1,6 @@
 @extends('layouts.shop')
 @section('title', 'تتبع طلبك')
+@section('noindex', '1')
 
 @section('content')
 <div class="page wrap" style="max-width:720px">

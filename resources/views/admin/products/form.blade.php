@@ -7,6 +7,10 @@
     <a class="btn btn--ghost" href="{{ route('admin.products.index') }}">رجوع للمنتجات</a>
 </div>
 
+@if (($waiting ?? 0) > 0)
+    <div class="hint"><strong>{{ $waiting }} زبون ينتظرون انخفاض سعر هذا المنتج.</strong> إذا خفّضت «سعر البيع» يصلهم إشعار، وتظهر لك أرقامهم لتذكيرهم. <a href="{{ route('admin.price-alerts', ['product' => $product->id]) }}" style="text-decoration:underline">عرض القائمة</a></div>
+@endif
+
 <form class="card" method="post" enctype="multipart/form-data" action="{{ $product->exists ? route('admin.products.update', $product) : route('admin.products.store') }}">
     @csrf
     @if ($product->exists) @method('put') @endif
@@ -59,6 +63,11 @@
             <label for="image">صورة المنتج</label>
             <input id="image" type="file" name="image" accept="image/*">
             <small>اختياري. بدون صورة يظهر رمز يناسب الشكل الدوائي.</small>
+        </div>
+        <div class="field field--full">
+            <label for="keywords">كلمات بحث إضافية</label>
+            <input id="keywords" type="text" name="keywords" value="{{ old('keywords', $product->keywords) }}" placeholder="مثلاً: بندول، مسكن، صداع">
+            <small>أسماء أخرى يكتبها الزبائن للوصول لهذا المنتج. البحث يفهم الاسم بالعربي تلقائياً، فأضف فقط ما يختلف عن الاسم.</small>
         </div>
         <div class="field field--full">
             <label for="description">الوصف</label>
