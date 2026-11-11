@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 // ---------- واجهة الزبائن ----------
 Route::get('/robots.txt', [PageController::class, 'robots']);
+Route::get('/manifest.webmanifest', [PageController::class, 'manifest'])->name('manifest');
 Route::get('/sitemap.xml', [PageController::class, 'sitemap'])->name('sitemap');
 
 Route::middleware(TrackVisit::class)->group(function () {
@@ -30,6 +31,7 @@ Route::middleware(TrackVisit::class)->group(function () {
         Route::get('/cart', [CartController::class, 'index'])->name('cart');
         Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
         Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');
+        Route::post('/cart/coupon', [CartController::class, 'coupon'])->name('cart.coupon')->middleware(['feature:coupons', 'throttle:contact']);
         Route::get('/checkout', [CheckoutController::class, 'form'])->name('checkout');
         Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store')->middleware('throttle:orders');
     });
@@ -39,17 +41,20 @@ Route::middleware(TrackVisit::class)->group(function () {
     Route::get('/track', [CheckoutController::class, 'track'])->name('track')->middleware(['feature:track', 'throttle:track']);
 
     Route::get('/request', [ProductRequestController::class, 'form'])->name('request')->middleware('feature:requests');
-    Route::post('/request', [ProductRequestController::class, 'store'])->name('request.store')->middleware(['feature:requests', 'throttle:contact']);
+    Route::post('/request', [ProductRequestController::class, 'store'])->name('request.store')->middleware(['feature:requests', 'honeypot', 'throttle:contact']);
 
     Route::get('/faq', [PageController::class, 'faq'])->name('faq')->middleware('feature:faq');
     Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
     Route::get('/contact', [PageController::class, 'contact'])->name('contact')->middleware('feature:contact');
-    Route::post('/contact', [PageController::class, 'contactStore'])->name('contact.store')->middleware(['feature:contact', 'throttle:contact']);
+    Route::post('/contact', [PageController::class, 'contactStore'])->name('contact.store')->middleware(['feature:contact', 'honeypot', 'throttle:contact']);
 
     // حساب الزبون
     Route::middleware('feature:accounts')->group(function () {
         Route::get('/register', [CustomerAuthController::class, 'showRegister'])->name('customer.register');
-        Route::post('/register', [CustomerAuthController::class, 'register'])->middleware('throttle:login');
+        Route::post('/register', [CustomerAuthController::class, 'register'])->middleware(['honeypot', 'throttle:login']);
+        Route::get('/forgot', [CustomerAuthController::class, 'showForgot'])->name('customer.forgot');
+        Route::post('/forgot', [CustomerAuthController::class, 'sendReset'])->middleware('throttle:codes');
+        Route::post('/forgot/reset', [CustomerAuthController::class, 'reset'])->name('customer.reset')->middleware('throttle:login');
         Route::get('/login', [CustomerAuthController::class, 'showLogin'])->name('customer.login');
         Route::post('/login', [CustomerAuthController::class, 'login'])->middleware('throttle:login');
         Route::post('/favorite/{product}', [FavoriteController::class, 'toggle'])->name('favorite');
@@ -59,6 +64,10 @@ Route::middleware(TrackVisit::class)->group(function () {
             Route::get('/account', [AccountController::class, 'index'])->name('account');
             Route::put('/account', [AccountController::class, 'update'])->name('account.update');
             Route::post('/account/reorder/{order}', [AccountController::class, 'reorder'])->name('account.reorder');
+            Route::post('/account/orders/{order}/cancel', [AccountController::class, 'cancel'])->name('account.cancel');
+            Route::get('/phone/verify', [CustomerAuthController::class, 'showVerify'])->name('customer.verify');
+            Route::post('/phone/verify', [CustomerAuthController::class, 'confirmVerify'])->middleware('throttle:login');
+            Route::post('/phone/verify/resend', [CustomerAuthController::class, 'resendVerify'])->name('customer.verify.resend')->middleware('throttle:codes');
         });
     });
 });
@@ -68,17 +77,16 @@ Route::get('/admin/login', [Admin\AuthController::class, 'form'])->name('login')
 Route::post('/admin/login', [Admin\AuthController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+    // ----- متاح لكل من يدخل اللوحة (المدير والموظف): العمل اليومي -----
     Route::post('/logout', [Admin\AuthController::class, 'logout'])->name('logout');
     Route::get('/', Admin\DashboardController::class)->name('dashboard');
     Route::get('/pulse', [Admin\DashboardController::class, 'pulse'])->name('pulse');
+    Route::get('/profile', [Admin\UserController::class, 'profile'])->name('profile');
+    Route::put('/profile', [Admin\UserController::class, 'profileUpdate'])->name('profile.update');
 
     Route::post('/products/bulk', [Admin\ProductController::class, 'bulk'])->name('products.bulk');
+    Route::get('/products/export', [Admin\ProductController::class, 'export'])->name('products.export');
     Route::resource('products', Admin\ProductController::class)->except('show');
-
-    Route::get('/categories', [Admin\CategoryController::class, 'index'])->name('categories.index');
-    Route::post('/categories', [Admin\CategoryController::class, 'store'])->name('categories.store');
-    Route::put('/categories/{id}', [Admin\CategoryController::class, 'update'])->name('categories.update');
-    Route::delete('/categories/{id}', [Admin\CategoryController::class, 'destroy'])->name('categories.destroy');
 
     Route::get('/orders', [Admin\OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/export', [Admin\OrderController::class, 'export'])->name('orders.export');
@@ -87,42 +95,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/orders/{order}/invoice', [Admin\OrderController::class, 'invoice'])->name('orders.invoice');
     Route::get('/orders/{order}/prescription', [Admin\OrderController::class, 'prescription'])->name('orders.prescription');
 
-    Route::get('/staff', [Admin\StaffController::class, 'index'])->name('staff.index');
-    Route::post('/staff', [Admin\StaffController::class, 'store'])->name('staff.store');
-    Route::post('/staff/import', [Admin\StaffController::class, 'import'])->name('staff.import');
-    Route::put('/staff/{staff}', [Admin\StaffController::class, 'update'])->name('staff.update');
-    Route::delete('/staff/{staff}', [Admin\StaffController::class, 'destroy'])->name('staff.destroy');
-    Route::post('/staff/{staff}/test', [Admin\StaffController::class, 'test'])->name('staff.test');
-
-    Route::get('/import', [Admin\ImportController::class, 'form'])->name('import');
-    Route::post('/import', [Admin\ImportController::class, 'upload'])->name('import.upload');
-    Route::get('/import/map', [Admin\ImportController::class, 'map'])->name('import.map');
-    Route::post('/import/run', [Admin\ImportController::class, 'run'])->name('import.run');
-    Route::get('/import/template', [Admin\ImportController::class, 'template'])->name('import.template');
-
-    Route::get('/telegram', [Admin\TelegramController::class, 'index'])->name('telegram');
-    Route::put('/telegram/credentials', [Admin\TelegramController::class, 'credentials'])->name('telegram.credentials');
-    Route::post('/telegram/link', [Admin\TelegramController::class, 'link'])->name('telegram.link');
-    Route::post('/telegram/code', [Admin\TelegramController::class, 'verifyCode'])->name('telegram.code');
-    Route::post('/telegram/password', [Admin\TelegramController::class, 'verifyPassword'])->name('telegram.password');
-    Route::post('/telegram/cancel', [Admin\TelegramController::class, 'cancel'])->name('telegram.cancel');
-    Route::post('/telegram/test', [Admin\TelegramController::class, 'test'])->name('telegram.test');
-    Route::delete('/telegram', [Admin\TelegramController::class, 'unlink'])->name('telegram.unlink');
-
-    Route::get('/faqs', [Admin\FaqController::class, 'index'])->name('faqs.index');
-    Route::post('/faqs', [Admin\FaqController::class, 'store'])->name('faqs.store');
-    Route::put('/faqs/{faq}', [Admin\FaqController::class, 'update'])->name('faqs.update');
-    Route::delete('/faqs/{faq}', [Admin\FaqController::class, 'destroy'])->name('faqs.destroy');
-
     Route::get('/messages', [Admin\MessageController::class, 'index'])->name('messages.index');
     Route::put('/messages/{message}', [Admin\MessageController::class, 'toggle'])->name('messages.toggle');
     Route::delete('/messages/{message}', [Admin\MessageController::class, 'destroy'])->name('messages.destroy');
 
-    Route::get('/analytics', [Admin\AnalyticsController::class, 'index'])->name('analytics');
-    Route::post('/analytics/synonyms', [Admin\AnalyticsController::class, 'synonymStore'])->name('synonyms.store');
-    Route::delete('/analytics/synonyms/{synonym}', [Admin\AnalyticsController::class, 'synonymDestroy'])->name('synonyms.destroy');
-
     Route::get('/customers', [Admin\CustomerController::class, 'index'])->name('customers.index');
+    Route::put('/customers/{customer}/verify', [Admin\CustomerController::class, 'verify'])->name('customers.verify');
+    Route::put('/customers/{customer}/password', [Admin\CustomerController::class, 'password'])->name('customers.password');
     Route::get('/price-alerts', [Admin\PriceAlertController::class, 'index'])->name('price-alerts');
 
     Route::get('/requests', [Admin\ProductRequestController::class, 'index'])->name('requests.index');
@@ -130,11 +109,59 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/requests/{productRequest}', [Admin\ProductRequestController::class, 'destroy'])->name('requests.destroy');
     Route::get('/requests/{productRequest}/image', [Admin\ProductRequestController::class, 'image'])->name('requests.image');
 
-    Route::get('/appearance', [Admin\AppearanceController::class, 'edit'])->name('appearance');
-    Route::put('/appearance', [Admin\AppearanceController::class, 'update'])->name('appearance.update');
-    Route::post('/appearance/reset', [Admin\AppearanceController::class, 'reset'])->name('appearance.reset');
+    // ----- للمدير فقط: الإعداد والإحصاءات والاستيراد -----
+    Route::middleware('admin')->group(function () {
+        Route::get('/analytics', [Admin\AnalyticsController::class, 'index'])->name('analytics');
+        Route::post('/analytics/synonyms', [Admin\AnalyticsController::class, 'synonymStore'])->name('synonyms.store');
+        Route::delete('/analytics/synonyms/{synonym}', [Admin\AnalyticsController::class, 'synonymDestroy'])->name('synonyms.destroy');
 
-    Route::get('/settings', [Admin\SettingController::class, 'edit'])->name('settings');
-    Route::put('/settings', [Admin\SettingController::class, 'update'])->name('settings.update');
-    Route::put('/settings/password', [Admin\SettingController::class, 'password'])->name('settings.password');
+        Route::get('/categories', [Admin\CategoryController::class, 'index'])->name('categories.index');
+        Route::post('/categories', [Admin\CategoryController::class, 'store'])->name('categories.store');
+        Route::put('/categories/{id}', [Admin\CategoryController::class, 'update'])->name('categories.update');
+        Route::delete('/categories/{id}', [Admin\CategoryController::class, 'destroy'])->name('categories.destroy');
+
+        Route::get('/coupons', [Admin\CouponController::class, 'index'])->name('coupons.index');
+        Route::post('/coupons', [Admin\CouponController::class, 'store'])->name('coupons.store');
+        Route::put('/coupons/{coupon}', [Admin\CouponController::class, 'toggle'])->name('coupons.toggle');
+        Route::delete('/coupons/{coupon}', [Admin\CouponController::class, 'destroy'])->name('coupons.destroy');
+
+        Route::get('/import', [Admin\ImportController::class, 'form'])->name('import');
+        Route::post('/import', [Admin\ImportController::class, 'upload'])->name('import.upload');
+        Route::get('/import/map', [Admin\ImportController::class, 'map'])->name('import.map');
+        Route::post('/import/run', [Admin\ImportController::class, 'run'])->name('import.run');
+        Route::get('/import/template', [Admin\ImportController::class, 'template'])->name('import.template');
+
+        Route::get('/staff', [Admin\StaffController::class, 'index'])->name('staff.index');
+        Route::post('/staff', [Admin\StaffController::class, 'store'])->name('staff.store');
+        Route::post('/staff/import', [Admin\StaffController::class, 'import'])->name('staff.import');
+        Route::put('/staff/{staff}', [Admin\StaffController::class, 'update'])->name('staff.update');
+        Route::delete('/staff/{staff}', [Admin\StaffController::class, 'destroy'])->name('staff.destroy');
+        Route::post('/staff/{staff}/test', [Admin\StaffController::class, 'test'])->name('staff.test');
+
+        Route::get('/telegram', [Admin\TelegramController::class, 'index'])->name('telegram');
+        Route::put('/telegram/credentials', [Admin\TelegramController::class, 'credentials'])->name('telegram.credentials');
+        Route::post('/telegram/link', [Admin\TelegramController::class, 'link'])->name('telegram.link');
+        Route::post('/telegram/code', [Admin\TelegramController::class, 'verifyCode'])->name('telegram.code');
+        Route::post('/telegram/password', [Admin\TelegramController::class, 'verifyPassword'])->name('telegram.password');
+        Route::post('/telegram/cancel', [Admin\TelegramController::class, 'cancel'])->name('telegram.cancel');
+        Route::post('/telegram/test', [Admin\TelegramController::class, 'test'])->name('telegram.test');
+        Route::delete('/telegram', [Admin\TelegramController::class, 'unlink'])->name('telegram.unlink');
+
+        Route::get('/faqs', [Admin\FaqController::class, 'index'])->name('faqs.index');
+        Route::post('/faqs', [Admin\FaqController::class, 'store'])->name('faqs.store');
+        Route::put('/faqs/{faq}', [Admin\FaqController::class, 'update'])->name('faqs.update');
+        Route::delete('/faqs/{faq}', [Admin\FaqController::class, 'destroy'])->name('faqs.destroy');
+
+        Route::get('/users', [Admin\UserController::class, 'index'])->name('users.index');
+        Route::post('/users', [Admin\UserController::class, 'store'])->name('users.store');
+        Route::put('/users/{user}', [Admin\UserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{user}', [Admin\UserController::class, 'destroy'])->name('users.destroy');
+
+        Route::get('/appearance', [Admin\AppearanceController::class, 'edit'])->name('appearance');
+        Route::put('/appearance', [Admin\AppearanceController::class, 'update'])->name('appearance.update');
+        Route::post('/appearance/reset', [Admin\AppearanceController::class, 'reset'])->name('appearance.reset');
+
+        Route::get('/settings', [Admin\SettingController::class, 'edit'])->name('settings');
+        Route::put('/settings', [Admin\SettingController::class, 'update'])->name('settings.update');
+    });
 });

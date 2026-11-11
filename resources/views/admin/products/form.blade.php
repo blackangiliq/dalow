@@ -60,6 +60,11 @@
             <input id="stock" type="number" name="stock" min="0" value="{{ old('stock', $product->stock) }}" required>
         </div>
         <div class="field">
+            <label for="expires_at">تاريخ انتهاء الصلاحية</label>
+            <input id="expires_at" type="date" name="expires_at" value="{{ old('expires_at', $product->expires_at?->format('Y-m-d')) }}">
+            <small>@if ($product->is_expired)<span class="pill pill--bad">منتهي: مخفي من المتجر تلقائياً</span>@else عند حلول التاريخ يختفي المنتج من المتجر تلقائياً ويظهر في تنبيهات اللوحة @endif</small>
+        </div>
+        <div class="field">
             <label for="image">صورة المنتج</label>
             <input id="image" type="file" name="image" accept="image/*">
             <small>اختياري. بدون صورة يظهر رمز يناسب الشكل الدوائي.</small>

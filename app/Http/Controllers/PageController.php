@@ -43,6 +43,30 @@ class PageController extends Controller
         return view('shop.privacy');
     }
 
+    /** ملف يجعل الموقع قابلاً للتثبيت كتطبيق على شاشة الموبايل */
+    public function manifest()
+    {
+        $name = \App\Models\Setting::get('name');
+
+        return response()->json([
+            'name' => $name,
+            'short_name' => $name,
+            'description' => 'اطلب أدويتك من '.$name.' وادفع عند الاستلام',
+            'start_url' => '/',
+            'scope' => '/',
+            'display' => 'standalone',
+            'dir' => 'rtl',
+            'lang' => 'ar',
+            'background_color' => '#0b2545',
+            'theme_color' => '#0b2545',
+            'icons' => [
+                ['src' => asset('icons/icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png'],
+                ['src' => asset('icons/icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png'],
+                ['src' => asset('icons/icon-maskable-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+            ],
+        ], 200, ['Content-Type' => 'application/manifest+json'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
     public function robots()
     {
         return response(implode("\n", [

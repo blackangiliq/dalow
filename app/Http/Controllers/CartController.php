@@ -11,8 +11,9 @@ class CartController extends Controller
     public function index()
     {
         $items = Cart::items();
+        $subtotal = $items->sum('line');
 
-        return view('shop.cart', ['items' => $items, 'subtotal' => $items->sum('line')]);
+        return view('shop.cart', ['items' => $items, 'subtotal' => $subtotal] + Cart::coupon($subtotal));
     }
 
     public function add(Request $request)
@@ -43,5 +44,23 @@ class CartController extends Controller
         Cart::set($data['product_id'], $product ? min($data['qty'], $product->stock) : 0);
 
         return redirect()->route('cart');
+    }
+
+    public function coupon(Request $request)
+    {
+        if ($request->input('action') === 'remove') {
+            session()->forget('coupon');
+
+            return back()->with('ok', 'أزيل كود الخصم');
+        }
+        $data = $request->validate(['code' => 'required|string|max:40'], ['code.required' => 'اكتب كود الخصم']);
+        $coupon = \App\Models\Coupon::findByCode($data['code']);
+        $reason = $coupon ? $coupon->rejection(Cart::items()->sum('line')) : 'هذا الكود غير صحيح';
+        if ($reason) {
+            return back()->withInput()->withErrors(['code' => $reason]);
+        }
+        session(['coupon' => $coupon->code]);
+
+        return back()->with('ok', 'طُبّق الكود: '.$coupon->label);
     }
 }

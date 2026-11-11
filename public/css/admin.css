@@ -98,7 +98,7 @@ td:last-child, th:last-child { padding-inline-end: 22px; }
 .field label, .field > span { font-weight: 700; font-size: 15px; }
 .field small { color: var(--ink-soft); font-size: 14px; }
 .field .err { color: var(--coral); font-size: 13.5px; font-weight: 500; }
-input[type=text], input[type=search], input[type=email], input[type=password], input[type=number], input[type=tel], input[type=url], input[type=file], select, textarea {
+input[type=text], input[type=search], input[type=email], input[type=password], input[type=number], input[type=tel], input[type=url], input[type=file], input[type=date], select, textarea {
   width: 100%; min-height: 40px; padding: 7px 12px; border: 1.5px solid var(--line); border-radius: 9px; background: var(--card); outline: 0;
 }
 input[type=color] { width: 54px; height: 40px; padding: 3px; border: 1.5px solid var(--line); border-radius: 9px; background: var(--card); }
@@ -163,6 +163,7 @@ td input[type=text], td input[type=tel] { min-width: 130px; }
 .stat--hot small { color: #a9bed3; }
 .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
 .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; margin-top: 18px; }
+.grid3--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid2 > .card, .grid3 > .card, .cols > .card { margin-top: 0; }
 .card__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 14px; }
 .card__head h2 { margin: 0; }
@@ -186,20 +187,21 @@ td input[type=text], td input[type=tel] { min-width: 130px; }
 .chart__axis { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 2px; margin-top: 6px; font-size: 12.5px; color: var(--ink-soft); text-align: center; }
 .chart__axis span:nth-child(odd) { visibility: hidden; }
 
-.rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.rank { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .rank li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
 .rank span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rank b { font-weight: 800; }
 .rank i { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--mist); overflow: hidden; }
 .rank i::after { content: ""; display: block; margin-left: auto; height: 100%; width: var(--w); border-radius: 3px; background: var(--water); }
-.statuslist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.statuslist a { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 9px; background: var(--mist); }
+.statuslist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.statuslist a { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-width: 0; padding: 8px 12px; border-radius: 9px; background: var(--mist); }
+.statuslist .pill { flex: none; }
 .statuslist a:hover { background: var(--line); }
 .statuslist b { font-weight: 800; }
 .channel { display: flex; gap: 12px; align-items: start; }
 .channel__dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 7px; background: var(--coral); flex: none; }
 .channel--on .channel__dot { background: var(--ok); }
-.quick { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .quick a { display: flex; gap: 8px; align-items: center; padding: 11px 12px; border-radius: 10px; background: var(--mist); font-weight: 700; }
 .quick a:hover { background: var(--line); }
 .quick .ico { color: var(--water); }
@@ -284,7 +286,7 @@ html[data-theme=dark] .switch span { background: #3a5270; }
 .chart__axis--30 { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
 .chart__axis--30 span { visibility: hidden !important; white-space: nowrap; }
 .chart__axis--30 span.show { visibility: visible !important; }
-.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+.bars { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 11px; }
 .bars li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; align-items: baseline; }
 .bars span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bars b { font-weight: 800; white-space: nowrap; }
@@ -339,8 +341,8 @@ html[data-theme=dark] input::placeholder, html[data-theme=dark] textarea::placeh
 /* ---------- تابلت ---------- */
 @media (max-width: 1180px) {
   .stats, .stats--5, .stats--6 { grid-template-columns: repeat(3, 1fr); }
-  .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cols { grid-template-columns: 1fr; }
+  .grid3, .grid3--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cols { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 1024px) {
   .shell { grid-template-columns: 1fr; }
@@ -370,7 +372,7 @@ html[data-theme=dark] input::placeholder, html[data-theme=dark] textarea::placeh
   .stat b { font-size: 24px; }
   .stats--5 .stat--hot { grid-column: 1 / -1; }
   .chart--30 { gap: 1px; }
-  .grid2, .grid3, .form, .form--3, .form--4 { grid-template-columns: 1fr; }
+  .grid2, .grid3, .grid3--4, .form, .form--3, .form--4 { grid-template-columns: minmax(0, 1fr); }
   .toggles { grid-template-columns: 1fr; }
   .savebar { flex-direction: column; align-items: stretch; text-align: center; }
   .card { padding: 16px; }
@@ -381,7 +383,7 @@ html[data-theme=dark] input::placeholder, html[data-theme=dark] textarea::placeh
   .head__actions .btn { flex: 1; }
   .chart { height: 150px; }
   .chart__val { font-size: 12px; }
-  .quick { grid-template-columns: 1fr; }
+  .quick { grid-template-columns: minmax(0, 1fr); }
   .inline > input[type=text], .inline > input[type=tel], .inline > select, .inline > .btn { width: 100% !important; flex: 1 1 100% !important; }
 
   /* الجداول تتحول إلى بطاقات: كل سطر بطاقة، وكل خانة معها عنوانها */

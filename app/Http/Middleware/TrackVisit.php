@@ -54,6 +54,12 @@ class TrackVisit
                     'referrer' => $this->referrer($request),
                     'device' => $this->device((string) $request->userAgent()),
                 ]);
+                // تنظيف دوري بلا حاجة لمهمة مجدولة: مرة كل بضع مئات من الزيارات نحذف القديم جداً
+                if (random_int(1, 400) === 1) {
+                    Visit::where('day', '<', today()->subDays(400))->delete();
+                    \App\Models\TrackEvent::where('day', '<', today()->subDays(180))->delete();
+                    \App\Models\SearchLog::where('day', '<', today()->subDays(400))->delete();
+                }
             } catch (\Throwable) {
                 // الإحصاءات لا تعطّل الصفحة أبداً
             }

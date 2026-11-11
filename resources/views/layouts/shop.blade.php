@@ -25,6 +25,8 @@
     <meta property="og:image" content="@yield('ogImage', asset('og-image.png'))">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <link rel="manifest" href="{{ route('manifest') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
     {{-- الوضع الداكن يُطبَّق قبل رسم الصفحة حتى لا تومض بالأبيض --}}
     <script>(function(){try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}})()</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">

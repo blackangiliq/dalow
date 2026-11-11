@@ -19,6 +19,11 @@ class ProductController extends Controller
         if ($request->query('stock') === 'low') {
             $query->where('stock', '<=', 5);
         }
+        match ($request->query('expiry')) {
+            'expired' => $query->whereNotNull('expires_at')->where('expires_at', '<', today())->reorder('expires_at'),
+            'soon' => $query->whereBetween('expires_at', [today(), today()->addDays(90)])->reorder('expires_at'),
+            default => null,
+        };
 
         return view('admin.products.index', [
             'products' => $query->latest('id')->paginate(30)->withQueryString(),
@@ -68,6 +73,30 @@ class ProductController extends Controller
         return back()->with('ok', 'حُذف المنتج');
     }
 
+    /** تصدير كل المنتجات إلى Excel بنفس أعمدة الاستيراد: عدّل الملف ثم أعد استيراده */
+    public function export()
+    {
+        $sheet = (new \PhpOffice\PhpSpreadsheet\Spreadsheet)->getActiveSheet();
+        $sheet->setRightToLeft(true);
+        $rows = [['اسم المنتج', 'الاسم العلمي', 'الشركة', 'القسم', 'الباركود', 'السعر', 'السعر قبل الخصم', 'الكمية', 'الشكل الدوائي', 'يحتاج وصفة', 'تاريخ الانتهاء', 'كلمات البحث']];
+        foreach (Product::with('category')->orderBy('name')->cursor() as $p) {
+            $rows[] = [$p->name, $p->scientific_name, $p->company, $p->category?->name, $p->barcode, $p->price, $p->old_price, $p->stock,
+                $p->dosage_form, $p->requires_prescription ? 'نعم' : 'لا', $p->expires_at?->format('Y-m-d'), $p->keywords];
+        }
+        $sheet->fromArray($rows, null, 'A1', true);
+        $sheet->getStyle('A1:L1')->getFont()->setBold(true);
+        $sheet->getStyle('E2:E'.count($rows))->getNumberFormat()->setFormatCode('@');
+        foreach (range('A', 'L') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(
+            fn () => (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($sheet->getParent()))->save('php://output'),
+            'products-'.now()->format('Y-m-d').'.xlsx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
+    }
+
     public function bulk(Request $request)
     {
         $data = $request->validate([
@@ -96,6 +125,7 @@ class ProductController extends Controller
             'company' => 'nullable|string|max:120',
             'barcode' => 'nullable|string|max:60',
             'keywords' => 'nullable|string|max:500',
+            'expires_at' => 'nullable|date',
             'category_id' => 'nullable|exists:categories,id',
             'dosage_form' => 'nullable|string|max:40',
             'description' => 'nullable|string|max:3000',
@@ -103,7 +133,7 @@ class ProductController extends Controller
             'old_price' => 'nullable|integer|min:0|max:100000000',
             'stock' => 'required|integer|min:0|max:1000000',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
-        ], [], ['name' => 'اسم المنتج', 'price' => 'السعر', 'stock' => 'الكمية', 'image' => 'الصورة']);
+        ], [], ['name' => 'اسم المنتج', 'price' => 'السعر', 'stock' => 'الكمية', 'image' => 'الصورة', 'expires_at' => 'تاريخ الانتهاء']);
         unset($data['image']);
 
         return $data + [

@@ -38,7 +38,22 @@ class Cart
 
     public static function clear(): void
     {
-        session()->forget(self::KEY);
+        session()->forget([self::KEY, 'coupon']);
+    }
+
+    /**
+     * كود الخصم المطبق على السلة إن كان ما زال صالحاً لمجموعها.
+     *
+     * @return array{coupon: ?\App\Models\Coupon, discount: int}
+     */
+    public static function coupon(int $subtotal): array
+    {
+        $coupon = \App\Support\Ui::on('coupons') ? \App\Models\Coupon::findByCode(session('coupon')) : null;
+        if (! $coupon || $coupon->rejection($subtotal)) {
+            return ['coupon' => null, 'discount' => 0];
+        }
+
+        return ['coupon' => $coupon, 'discount' => $coupon->discountFor($subtotal)];
     }
 
     public static function count(): int

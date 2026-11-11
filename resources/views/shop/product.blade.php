@@ -65,9 +65,13 @@
                         <a class="btn btn--wa-line" href="{{ $waOrder }}" target="_blank" rel="noopener" data-track="wa-order">@icon('whatsapp') اطلب عبر واتساب</a>
                     @endif
                 </form>
-                @elseif ($site['whatsapp'])
+                @elseif ($site['whatsapp'] && $on['wa_order'])
                 <div class="buy">
                     <a class="btn btn--wa" href="{{ $waOrder }}" target="_blank" rel="noopener" data-track="wa-order">@icon('whatsapp') اطلب عبر واتساب</a>
+                </div>
+                @else
+                <div class="buy">
+                    <a class="btn btn--buy" href="tel:{{ $site['phone'] }}" data-track="call">@icon('phone') اتصل للطلب: <span class="num">{{ $site['phone'] }}</span></a>
                 </div>
                 @endif
             @else

@@ -12,6 +12,10 @@
         <form method="post" action="{{ route('customer.logout') }}">@csrf <button class="btn btn--ghost btn--sm">تسجيل الخروج</button></form>
     </div>
 
+    @if (! $customer->phone_verified_at && app(\App\Services\PhoneCodes::class)->available())
+        <div class="note">@icon('alert') <p><strong>رقمك غير مؤكد بعد.</strong> أكّده لتصلك تنبيهات انخفاض السعر وحالة طلبك على رقمك، ولتظهر طلباتك السابقة. <a class="more" href="{{ route('customer.verify') }}">أكّد الرقم</a></p></div>
+    @endif
+
     <nav class="tabs" aria-label="أقسام الحساب">
         <a href="{{ route('account') }}" @class(['on' => $tab === 'orders'])>@icon('list') طلباتي</a>
         <a href="{{ route('account', ['tab' => 'favorites']) }}" @class(['on' => $tab === 'favorites'])>@icon('heart') تنبيهات السعر @if ($favoriteCount)<span class="num">({{ $favoriteCount }})</span>@endif</a>
@@ -32,6 +36,9 @@
                     <a class="btn btn--sm btn--ghost" href="{{ route('track', ['number' => $o->number, 'phone' => $o->phone]) }}">تتبع</a>
                     @if ($o->items->count())
                         <form method="post" action="{{ route('account.reorder', $o) }}">@csrf <button class="btn btn--sm">@icon('repeat') أعد الطلب</button></form>
+                    @endif
+                    @if ($o->status === 'new')
+                        <form method="post" action="{{ route('account.cancel', $o) }}" onsubmit="return confirm('إلغاء الطلب {{ $o->number }}؟')">@csrf <button class="btn btn--sm btn--ghost" style="color:var(--coral)">إلغاء الطلب</button></form>
                     @endif
                 </div>
             </div>

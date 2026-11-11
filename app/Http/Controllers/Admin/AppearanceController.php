@@ -39,7 +39,7 @@ class AppearanceController extends Controller
         // النص المطابق للافتراضي لا يُحفظ، ليبقى تابعاً لأي تحسين لاحق في الافتراضي
         foreach ($definitions as $key => $def) {
             $value = trim((string) ($data['text'][$key] ?? ''));
-            Setting::put('ui_'.$key, $value === '' || $value === $def[1] ? null : $value);
+            Setting::put('ui_'.$key, $value === '' || $value === Ui::defaultFor($key) || $value === $def[1] ? null : $value);
         }
         foreach (array_merge(...array_values(Ui::FEATURES)) as $key => $def) {
             Setting::put('on_'.$key, $request->boolean("on.{$key}") ? '1' : '0');

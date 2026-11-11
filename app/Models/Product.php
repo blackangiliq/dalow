@@ -16,6 +16,7 @@ class Product extends Model
         'requires_prescription' => 'boolean',
         'is_featured' => 'boolean',
         'is_active' => 'boolean',
+        'expires_at' => 'date',
     ];
 
     public const FORMS = [
@@ -34,8 +35,12 @@ class Product extends Model
         static::updated(function (Product $product) {
             $before = (int) $product->getOriginal('price');
             $hadOffer = $product->getOriginal('old_price') > $before;
-            if ($product->is_active && ($product->price < $before || (! $hadOffer && $product->discount > 0))) {
+            if ($product->is_sellable && ($product->price < $before || (! $hadOffer && $product->discount > 0))) {
                 app(DiscountNotifier::class)->priceDropped($product, $before);
+            }
+            // رجع المنتج للمخزون: نبلغ من ينتظره
+            if ($product->is_sellable && (int) $product->getOriginal('stock') < 1 && $product->stock > 0) {
+                app(\App\Services\CustomerNotifier::class)->backInStock($product);
             }
         });
     }
@@ -63,9 +68,22 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
+    /** ما يُعرض في المتجر: ظاهر وغير منتهي الصلاحية */
     public function scopeActive(Builder $q): Builder
     {
-        return $q->where('is_active', true);
+        return $q->where('is_active', true)
+            ->where(fn (Builder $w) => $w->whereNull('expires_at')->orWhere('expires_at', '>=', today()));
+    }
+
+    public function getIsExpiredAttribute(): bool
+    {
+        return $this->expires_at !== null && $this->expires_at->lt(today());
+    }
+
+    /** هل يُباع في المتجر الآن؟ */
+    public function getIsSellableAttribute(): bool
+    {
+        return $this->is_active && ! $this->is_expired;
     }
 
     public function scopeSearch(Builder $q, ?string $term): Builder

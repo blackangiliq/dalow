@@ -24,7 +24,7 @@
             <button class="btn btn--block" style="margin-top:20px">دخول</button>
         </form>
         <p class="authswap">ليس عندك حساب؟ <a href="{{ route('customer.register') }}">أنشئ حساباً برقم موبايلك</a></p>
-        <p class="authswap">نسيت كلمة المرور؟ <a href="{{ \App\Support\Util::wa($site['whatsapp'], 'مرحباً، نسيت كلمة مرور حسابي في موقع '.$site['name'].'. رقمي المسجل: ') }}" target="_blank" rel="noopener">راسل الصيدلية لتغييرها</a></p>
+        <p class="authswap">نسيت كلمة المرور؟ <a href="{{ route('customer.forgot') }}">استعدها</a></p>
     </div>
 </div>
 @endsection

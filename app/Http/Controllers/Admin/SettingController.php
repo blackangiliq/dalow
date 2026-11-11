@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class SettingController extends Controller
 {
@@ -72,18 +71,4 @@ class SettingController extends Controller
         return back()->with('ok', 'حُفظت الإعدادات');
     }
 
-    public function password(Request $request)
-    {
-        $data = $request->validate([
-            'current_password' => 'required|current_password',
-            'password' => 'required|string|min:8|confirmed',
-        ], [
-            'current_password.current_password' => 'كلمة المرور الحالية غير صحيحة',
-            'password.confirmed' => 'تأكيد كلمة المرور غير مطابق',
-            'password.min' => 'كلمة المرور الجديدة 8 أحرف على الأقل',
-        ]);
-        $request->user()->update(['password' => Hash::make($data['password'])]);
-
-        return back()->with('ok', 'تغيرت كلمة المرور');
-    }
 }

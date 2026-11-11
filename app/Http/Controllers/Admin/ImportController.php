@@ -27,6 +27,8 @@ class ImportController extends Controller
         'stock' => ['label' => 'الكمية المتوفرة', 'hints' => ['كمية', 'الكمية', 'رصيد', 'مخزون', 'عدد', 'stock', 'qty', 'quantity']],
         'old_price' => ['label' => 'السعر قبل الخصم', 'hints' => ['قبل', 'القديم', 'old', 'before', 'was']],
         'dosage_form' => ['label' => 'الشكل الدوائي', 'hints' => ['شكل', 'الشكل', 'نوع', 'form', 'type']],
+        'expires_at' => ['label' => 'تاريخ انتهاء الصلاحية', 'hints' => ['انتهاء', 'الانتهاء', 'صلاحية', 'الصلاحية', 'نفاذ', 'expiry', 'expire', 'exp']],
+        'keywords' => ['label' => 'كلمات البحث', 'hints' => ['كلمات', 'keywords', 'tags']],
         'description' => ['label' => 'الوصف', 'hints' => ['وصف', 'الوصف', 'ملاحظات', 'description', 'note']],
         'requires_prescription' => ['label' => 'يحتاج وصفة (نعم/لا)', 'hints' => ['وصفة', 'prescription', 'rx']],
     ];
@@ -84,7 +86,7 @@ class ImportController extends Controller
         // تخمين الحقل المناسب لكل عمود من عنوانه
         // الحقول ذات العناوين الأدق أولاً، حتى لا يأخذ «الاسم» عمود «الاسم العلمي» مثلاً
         $guess = [];
-        $order = ['scientific_name', 'old_price', 'requires_prescription', 'barcode', 'category', 'company', 'stock', 'dosage_form', 'name', 'price', 'description'];
+        $order = ['scientific_name', 'old_price', 'requires_prescription', 'expires_at', 'keywords', 'barcode', 'category', 'company', 'stock', 'dosage_form', 'name', 'price', 'description'];
         foreach ($order as $field) {
             $meta = self::FIELDS[$field];
             foreach ($headers as $i => $header) {
@@ -158,7 +160,7 @@ class ImportController extends Controller
                 }
 
                 $attrs = ['name' => mb_substr($name, 0, 160), 'price' => $price];
-                foreach (['scientific_name', 'company', 'barcode', 'dosage_form', 'description'] as $f) {
+                foreach (['scientific_name', 'company', 'barcode', 'dosage_form', 'description', 'keywords'] as $f) {
                     if (isset($map[$f]) && ($v = $cell($row, $f)) !== '') {
                         $attrs[$f] = $f === 'barcode' ? Util::digits($v) : $v;
                     }
@@ -169,6 +171,9 @@ class ImportController extends Controller
                 if (isset($map['old_price'])) {
                     $old = Util::amount($row[$map['old_price']] ?? null);
                     $attrs['old_price'] = ($old && $old > $price) ? $old : null;
+                }
+                if (isset($map['expires_at'])) {
+                    $attrs['expires_at'] = self::date($row[$map['expires_at']] ?? null);
                 }
                 if (isset($map['requires_prescription'])) {
                     $attrs['requires_prescription'] = in_array(mb_strtolower($cell($row, 'requires_prescription')), ['1', 'yes', 'y', 'true', 'نعم', 'اي', 'وصفة', 'rx'], true);
@@ -220,15 +225,15 @@ class ImportController extends Controller
         $sheet = (new Spreadsheet)->getActiveSheet();
         $sheet->setRightToLeft(true);
         $sheet->fromArray([
-            ['اسم المنتج', 'الاسم العلمي', 'الشركة', 'القسم', 'الباركود', 'السعر', 'السعر قبل الخصم', 'الكمية', 'الشكل الدوائي', 'يحتاج وصفة'],
-            ['Panadol Extra 24 Tab', 'Paracetamol + Caffeine', 'GSK', 'أدوية', '5000158100503', 2500, '', 120, 'أقراص', 'لا'],
-            ['Augmentin 1g 14 Tab', 'Amoxicillin + Clavulanic acid', 'GSK', 'أدوية', '5000158105201', 12500, 14000, 40, 'أقراص', 'نعم'],
-            ['Centrum Adults 30 Tab', 'Multivitamin', 'Haleon', 'فيتامينات ومكملات', '', 18000, '', 25, 'أقراص', 'لا'],
+            ['اسم المنتج', 'الاسم العلمي', 'الشركة', 'القسم', 'الباركود', 'السعر', 'السعر قبل الخصم', 'الكمية', 'الشكل الدوائي', 'يحتاج وصفة', 'تاريخ الانتهاء'],
+            ['Panadol Extra 24 Tab', 'Paracetamol + Caffeine', 'GSK', 'أدوية', '5000158100503', 2500, '', 120, 'أقراص', 'لا', '2028-06-30'],
+            ['Augmentin 1g 14 Tab', 'Amoxicillin + Clavulanic acid', 'GSK', 'أدوية', '5000158105201', 12500, 14000, 40, 'أقراص', 'نعم', '05/2028'],
+            ['Centrum Adults 30 Tab', 'Multivitamin', 'Haleon', 'فيتامينات ومكملات', '', 18000, '', 25, 'أقراص', 'لا', ''],
         ]);
-        foreach (range('A', 'J') as $col) {
+        foreach (range('A', 'K') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
-        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:K1')->getFont()->setBold(true);
         $sheet->getStyle('E2:E200')->getNumberFormat()->setFormatCode('@');
 
         return response()->streamDownload(
@@ -236,6 +241,30 @@ class ImportController extends Controller
             'aldalu-products-template.xlsx',
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
         );
+    }
+
+    /** يقرأ التاريخ بأي صيغة شائعة: تاريخ Excel رقمياً، 2027-05-31، 31/05/2027، أو 05/2027 (آخر الشهر) */
+    public static function date(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        try {
+            if (is_numeric($value) && $value > 20000 && $value < 80000) {
+                return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $value)->format('Y-m-d');
+            }
+            $text = trim(Util::digits((string) $value));
+            if (preg_match('#^(\d{1,2})[/.-](\d{4})$#', $text, $m)) {
+                return \Illuminate\Support\Carbon::create((int) $m[2], (int) $m[1], 1)->endOfMonth()->toDateString();
+            }
+            if (preg_match('#^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$#', $text, $m)) {
+                return \Illuminate\Support\Carbon::create((int) $m[3], (int) $m[2], (int) $m[1])->toDateString();
+            }
+
+            return \Illuminate\Support\Carbon::parse($text)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /** @return array<int, array<int, mixed>> */

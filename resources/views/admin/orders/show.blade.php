@@ -25,6 +25,7 @@
                     @foreach ($order->items as $item)
                         <tr><td>{{ $item->name }}</td><td>@iqd($item->price)</td><td class="num">{{ $item->qty }}</td><td class="t-end">@iqd($item->price * $item->qty)</td></tr>
                     @endforeach
+                    @if ($order->discount)<tr><td colspan="3">خصم الكود <span class="num">{{ $order->coupon_code }}</span></td><td class="t-end">-@iqd($order->discount)</td></tr>@endif
                     <tr><td colspan="3">التوصيل</td><td class="t-end">{{ $order->delivery_fee ? \App\Support\Util::money($order->delivery_fee) : 'مجاني' }}</td></tr>
                     <tr><td colspan="3"><strong>المجموع (الدفع عند الاستلام)</strong></td><td class="t-end"><strong>@iqd($order->total)</strong></td></tr>
                     </tbody>
@@ -73,7 +74,18 @@
                 </select>
                 <button class="btn">حفظ الحالة</button>
             </form>
-            <p class="card__sub" style="margin:12px 0 0">عند الإلغاء ترجع الكميات إلى المخزون تلقائياً.</p>
+            @php
+                $statusText = match ($order->status) {
+                    'confirmed' => 'أكدنا طلبك ونبدأ تجهيزه.',
+                    'preparing' => 'طلبك قيد التجهيز الآن.',
+                    'shipping' => \App\Support\Util::isPickup($order->area) ? 'طلبك جاهز للاستلام من الصيدلية.' : 'طلبك خرج للتوصيل وسيصلك قريباً.',
+                    'delivered' => 'تم تسليم طلبك. نتمنى لك السلامة.',
+                    'cancelled' => 'نعتذر، أُلغي طلبك.',
+                    default => 'استلمنا طلبك وسنتصل بك للتأكيد.',
+                };
+            @endphp
+            <a class="btn btn--ghost btn--sm" style="margin-top:12px" target="_blank" rel="noopener" href="{{ \App\Support\Util::wa($order->phone, 'مرحباً '.$order->customer_name.'، معك صيدلية الدلو. طلبك رقم '.$order->number.': '.$statusText."\n".route('track', ['number' => $order->number, 'phone' => $order->phone])) }}">@icon('whatsapp') أبلغ الزبون بالحالة على واتساب</a>
+            <p class="card__sub" style="margin:12px 0 0">عند الإلغاء ترجع الكميات إلى المخزون تلقائياً. الزبون المسجل يصله إشعار بكل تغيير في حسابه.</p>
         </div>
     </div>
 </div>

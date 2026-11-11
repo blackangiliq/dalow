@@ -35,6 +35,7 @@
         <form class="panel" method="post" action="{{ route('contact.store') }}">
             @csrf
             <h2>اترك لنا رسالة</h2>
+        <div class="hp" aria-hidden="true"><label>اترك هذا الحقل فارغاً <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
             @if (session('ok'))<div class="note note--ok" style="margin:0 0 16px">@icon('check') <p>{{ session('ok') }}</p></div>@endif
             <div class="form">
                 <div @class(['field', 'bad' => $errors->has('name')])>

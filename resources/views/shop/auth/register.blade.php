@@ -11,6 +11,7 @@
 
         <form class="panel" method="post" action="{{ route('customer.register') }}">
             @csrf
+        <div class="hp" aria-hidden="true"><label>اترك هذا الحقل فارغاً <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
             <div class="form">
                 <div @class(['field', 'bad' => $errors->has('name')])>
                     <label for="name">الاسم</label>

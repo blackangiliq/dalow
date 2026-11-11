@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ContactMessage;
+use App\Models\Coupon;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -32,7 +33,7 @@ class PharmacyTest extends TestCase
 
     public function test_storefront_pages_open(): void
     {        // كل صفحات المنتجات والأقسام تفتح، بما فيها المنتجات بلا اسم علمي أو بلا مخزون
-        foreach (Product::all() as $p) {
+        foreach (Product::active()->get() as $p) {
             $this->get(route('product', $p))->assertOk();
         }
         foreach (\App\Models\Category::all() as $c) {
@@ -330,6 +331,162 @@ class PharmacyTest extends TestCase
         $this->actingAs($admin)->post('/admin/appearance/reset', ['what' => 'texts']);
         auth()->logout();
         $this->get('/')->assertSee('دواؤك من صيدلية الدلو يوصلك لباب بيتك');
+    }
+
+    public function test_coupon_discounts_the_order_and_respects_its_limits(): void
+    {
+        $product = Product::where('requires_prescription', false)->where('stock', '>', 10)->where('price', '>=', 4000)->first();
+        Coupon::create(['code' => 'TEN', 'type' => 'percent', 'value' => 10, 'min_total' => 5000, 'max_uses' => 1]);
+
+        $this->post('/cart/add', ['product_id' => $product->id, 'qty' => 2]);
+        $this->post('/cart/coupon', ['code' => 'nope'])->assertSessionHasErrors('code');
+        $this->post('/cart/coupon', ['code' => ' ten '])->assertSessionHasNoErrors();   // بأي حالة أحرف ومع فراغات
+        $subtotal = $product->price * 2;
+        $this->get('/cart')->assertSee('خصم 10%');
+
+        $this->post('/checkout', ['customer_name' => 'محمد علي', 'phone' => '07701234567', 'area' => 'زيونة', 'address' => 'محلة 712 زقاق 5']);
+        $order = Order::latest('id')->first();
+        $this->assertSame('TEN', $order->coupon_code);
+        $this->assertSame((int) round($subtotal * 0.1), $order->discount);
+        $this->assertSame($subtotal - $order->discount + 1000, $order->total);
+        $this->assertSame(1, Coupon::where('code', 'TEN')->first()->used);
+
+        // استُنفد الكود: لا يُطبق مرة ثانية
+        $this->post('/cart/add', ['product_id' => $product->id, 'qty' => 2]);
+        $this->post('/cart/coupon', ['code' => 'TEN'])->assertSessionHasErrors('code');
+    }
+
+    public function test_expired_products_disappear_and_expiry_is_imported(): void
+    {
+        $product = Product::where('stock', '>', 0)->whereNull('expires_at')->first();
+        $this->get(route('product', $product))->assertOk();
+
+        $product->update(['expires_at' => today()->subDay()]);
+        $this->get(route('product', $product))->assertNotFound();
+        $this->assertNotContains($product->id, app(ProductSearch::class)->search($product->name)['ids']);
+        $this->actingAs(User::first())->get('/admin')->assertSee('انتهت صلاحيته');
+
+        // صيغ التاريخ الشائعة في قوائم المذاخر
+        $this->assertSame('2028-05-31', \App\Http\Controllers\Admin\ImportController::date('05/2028'));
+        $this->assertSame('2027-03-09', \App\Http\Controllers\Admin\ImportController::date('9/3/2027'));
+        $this->assertSame('2027-12-01', \App\Http\Controllers\Admin\ImportController::date('2027-12-01'));
+        $this->assertNull(\App\Http\Controllers\Admin\ImportController::date('غير معروف'));
+        $this->actingAs(User::first())->get('/admin/products/export')->assertOk();
+    }
+
+    public function test_customer_is_told_about_order_status_and_restock_and_can_cancel(): void
+    {
+        $this->withoutDefer();
+        $telegram = $this->fakeTelegram();
+        $this->post('/register', ['name' => 'نور محمد', 'phone' => '07705551234', 'password' => 'secret12', 'password_confirmation' => 'secret12', 'notify_telegram' => 1]);
+        $customer = Customer::first();
+
+        $product = Product::where('requires_prescription', false)->where('stock', '>', 5)->first();
+        $this->post('/cart/add', ['product_id' => $product->id]);
+        $this->post('/checkout', ['customer_name' => 'نور محمد', 'phone' => '07705551234', 'area' => 'زيونة', 'address' => 'محلة 712 زقاق 5']);
+        $order = Order::latest('id')->first();
+        $this->assertSame($customer->id, $order->customer_id);
+
+        // المدير يؤكد الطلب: إشعار في الحساب ورسالة على الرقم
+        $telegram->sent = [];
+        $order->changeStatus('confirmed', 'المدير');
+        $this->assertStringContainsString($order->number, $customer->notifications()->latest('id')->first()->title);
+        $this->assertSame('07705551234', $telegram->sent[0]['phone']);
+
+        // بعد التأكيد لا يستطيع الزبون الإلغاء من حسابه
+        $this->post(route('account.cancel', $order))->assertSessionHas('error');
+        $this->assertSame('confirmed', $order->fresh()->status);
+
+        // طلب جديد يلغيه الزبون فترجع الكمية
+        $stock = $product->fresh()->stock;
+        $this->post('/cart/add', ['product_id' => $product->id]);
+        $this->post('/checkout', ['customer_name' => 'نور محمد', 'phone' => '07705551234', 'area' => 'زيونة', 'address' => 'محلة 712 زقاق 5']);
+        $second = Order::latest('id')->first();
+        $this->post(route('account.cancel', $second))->assertSessionHas('ok');
+        $this->assertSame('cancelled', $second->fresh()->status);
+        $this->assertSame($stock, $product->fresh()->stock);
+
+        // منتج نافد في قائمته يرجع للمخزون
+        $out = Product::where('stock', 0)->first();
+        $customer->favorites()->attach($out->id);
+        $out->update(['stock' => 12]);
+        $this->assertStringContainsString('توفر الآن', $customer->notifications()->latest('id')->first()->title);
+    }
+
+    public function test_phone_is_verified_by_code_and_password_can_be_reset(): void
+    {
+        $telegram = $this->fakeTelegram();
+        Setting::put('on_phone_verify', '1');
+        $code = fn () => preg_match('/<code>(\d{6})<\/code>/', end($telegram->sent)['text'], $m) ? $m[1] : null;
+
+        // طلب قديم بنفس الرقم قبل التسجيل
+        $guestOrder = Order::create(['number' => 'D100001', 'customer_name' => 'نور', 'phone' => '07705551234', 'area' => 'زيونة', 'address' => 'محلة 712']);
+
+        $this->post('/register', ['name' => 'نور محمد', 'phone' => '07705551234', 'password' => 'secret12', 'password_confirmation' => 'secret12', 'notify_telegram' => 1])
+            ->assertRedirect(route('customer.verify'));
+        $customer = Customer::first();
+        $this->assertNull($customer->phone_verified_at);
+        $this->assertFalse($customer->can_be_messaged);              // لا رسائل لرقم غير مؤكد
+        $this->assertNull($guestOrder->fresh()->customer_id);        // ولا تُكشف له طلبات الرقم
+
+        $this->post('/phone/verify', ['code' => '000000'])->assertSessionHasErrors('code');
+        $this->post('/phone/verify', ['code' => $code()])->assertRedirect();
+        $this->assertNotNull($customer->fresh()->phone_verified_at);
+        $this->assertSame($customer->id, $guestOrder->fresh()->customer_id);
+
+        // استعادة كلمة المرور بكود
+        $this->post('/logout');
+        $this->post('/forgot', ['phone' => '07705551234'])->assertRedirect(route('customer.forgot'));
+        $this->post('/forgot/reset', ['code' => $code(), 'password' => 'newpass99', 'password_confirmation' => 'newpass99'])->assertRedirect(route('account'));
+        $this->post('/logout');
+        $this->post('/login', ['phone' => '07705551234', 'password' => 'newpass99'])->assertRedirect(route('account'));
+
+        // رقم غير مسجل: الرد نفسه ولا يُرسل شيء
+        $count = count($telegram->sent);
+        $this->post('/logout');
+        $this->post('/forgot', ['phone' => '07809990000'])->assertSessionHas('ok');
+        $this->assertCount($count, $telegram->sent);
+    }
+
+    public function test_staff_role_is_limited_and_last_admin_is_protected(): void
+    {
+        $admin = User::first();
+        $this->actingAs($admin)->post('/admin/users', ['name' => 'موظف الكاشير', 'email' => 'staff@aldalu.iq', 'password' => 'password12', 'role' => 'staff'])->assertSessionHas('ok');
+        $staff = User::where('email', 'staff@aldalu.iq')->first();
+
+        foreach (['/admin', '/admin/orders', '/admin/products', '/admin/customers', '/admin/price-alerts', '/admin/requests', '/admin/messages', '/admin/profile'] as $url) {
+            $this->actingAs($staff)->get($url)->assertOk();
+        }
+        foreach (['/admin/settings', '/admin/analytics', '/admin/appearance', '/admin/users', '/admin/telegram', '/admin/coupons', '/admin/import', '/admin/staff'] as $url) {
+            $this->actingAs($staff)->get($url)->assertRedirect(route('admin.dashboard'));
+        }
+        $this->actingAs($staff)->get('/admin')->assertDontSee('الإعدادات</a>', false);
+
+        // المدير الوحيد لا يُحذف ولا يُنزَّل
+        $this->actingAs($admin)->put(route('admin.users.update', $admin), ['role' => 'staff'])->assertSessionHas('error');
+        $this->actingAs($admin)->delete(route('admin.users.destroy', $admin))->assertSessionHas('error');
+        $this->assertTrue($admin->fresh()->isAdmin());
+    }
+
+    public function test_storefront_gaps_error_pages_bots_and_pickup_texts(): void
+    {
+        // صفحة خطأ عربية
+        $this->get('/no-such-page')->assertNotFound()->assertSee('هذه الصفحة غير موجودة');
+
+        // رسالة آلية (ملأت الحقل المخفي) لا تُحفظ
+        $this->post('/contact', ['name' => 'Bot', 'phone' => '07701234567', 'body' => 'spam spam spam', 'website' => 'http://spam.example'])->assertSessionHas('ok');
+        $this->assertSame(0, ContactMessage::count());
+
+        // ترويسات الأمان وملف التثبيت
+        $this->get('/')->assertHeader('X-Frame-Options', 'SAMEORIGIN')->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->get('/manifest.webmanifest')->assertOk()->assertJsonPath('display', 'standalone');
+
+        // عند إيقاف التوصيل تتبدل النصوص الافتراضية تلقائياً، ونص المدير الخاص يبقى
+        $this->get('/')->assertSee('يوصلك لباب بيتك')->assertSee('توصيل لكل بغداد');
+        Setting::put('delivery_enabled', '0');
+        Setting::put('ui_assure3_title', 'أدوية مضمونة');
+        $this->get('/')->assertDontSee('يوصلك لباب بيتك')->assertDontSee('توصيل لكل بغداد')
+            ->assertSee('واستلمه جاهزاً')->assertSee('استلام من الصيدلية')->assertSee('أدوية مضمونة');
     }
 
     public function test_prescription_medicine_needs_a_prescription_image(): void

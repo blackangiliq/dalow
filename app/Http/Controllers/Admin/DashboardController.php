@@ -45,6 +45,8 @@ class DashboardController extends Controller
             'recipients' => Staff::where('notify', true)->count(),
             'failedStaff' => Staff::where('notify', true)->whereNotNull('telegram_error')->count(),
             'productCount' => Product::count(),
+            'expired' => Product::where('is_active', true)->whereNotNull('expires_at')->where('expires_at', '<', today())->count(),
+            'expiringSoon' => Product::where('is_active', true)->whereBetween('expires_at', [today(), today()->addDays(90)])->orderBy('expires_at')->take(6)->get(),
             'visitorsToday' => \App\Models\Visit::where('day', today())->distinct('visitor')->count('visitor'),
             'visitorsMonth' => \App\Models\Visit::where('day', '>=', today()->startOfMonth())->distinct('visitor')->count('visitor'),
         ]);

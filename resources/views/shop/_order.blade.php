@@ -21,6 +21,9 @@
             <div class="sum" style="margin-bottom:8px"><div><dt>{{ $item->name }} × <span class="num">{{ $item->qty }}</span></dt><dd>@iqd($item->price * $item->qty)</dd></div></div>
         @endforeach
         <dl class="sum" style="border-top:1.5px solid var(--line);padding-top:12px;margin-top:12px">
+            @if ($order->discount)
+                <div><dt>خصم الكود <span class="num">{{ $order->coupon_code }}</span></dt><dd style="color:var(--ok)">-@iqd($order->discount)</dd></div>
+            @endif
             <div><dt>{{ \App\Support\Util::isPickup($order->area) ? $order->area : 'التوصيل إلى '.$order->area }}</dt><dd>{{ $order->delivery_fee ? \App\Support\Util::money($order->delivery_fee) : 'بدون أجور' }}</dd></div>
             <div class="total"><dt>المجموع (الدفع عند الاستلام)</dt><dd>@iqd($order->total)</dd></div>
         </dl>

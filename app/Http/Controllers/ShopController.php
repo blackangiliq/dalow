@@ -85,7 +85,7 @@ class ShopController extends Controller
 
     public function show(Request $request, Product $product)
     {
-        abort_unless($product->is_active, 404);
+        abort_unless($product->is_sellable, 404);
         // رابط قديم بلا اسم المنتج يُحوَّل للرابط الكامل (عنوان واحد لكل منتج أمام محركات البحث)
         if ($request->route()->originalParameter('product') !== $product->getRouteKey()) {
             return redirect()->route('product', $product, 301);

@@ -5,7 +5,8 @@
 <div class="head">
     <div><h1>المنتجات</h1><p><span class="num">{{ $products->total() }}</span> منتج</p></div>
     <div class="head__actions">
-        <a class="btn btn--ghost" href="{{ route('admin.import') }}">@icon('sheet') استيراد من Excel</a>
+        <a class="btn btn--ghost" href="{{ route('admin.products.export') }}">@icon('sheet') تصدير إلى Excel</a>
+        @if (auth()->user()->isAdmin())<a class="btn btn--ghost" href="{{ route('admin.import') }}">@icon('upload') استيراد من Excel</a>@endif
         <a class="btn" href="{{ route('admin.products.create') }}">أضف منتجاً</a>
     </div>
 </div>
@@ -19,6 +20,11 @@
     <select name="stock" style="width:auto" aria-label="المخزون">
         <option value="">كل الكميات</option>
         <option value="low" @selected(request('stock') === 'low')>قارب على النفاد</option>
+    </select>
+    <select name="expiry" style="width:auto" aria-label="الصلاحية">
+        <option value="">كل التواريخ</option>
+        <option value="soon" @selected(request('expiry') === 'soon')>تنتهي خلال 90 يوماً</option>
+        <option value="expired" @selected(request('expiry') === 'expired')>منتهية الصلاحية</option>
     </select>
     <button class="btn btn--ghost">تصفية</button>
 </form>
@@ -54,6 +60,8 @@
                         <td>
                             <span @class(['pill', 'pill--ok' => $p->is_active])>{{ $p->is_active ? 'ظاهر' : 'مخفي' }}</span>
                             @if ($p->requires_prescription)<span class="pill">وصفة</span>@endif
+                            @if ($p->is_expired)<span class="pill pill--bad">منتهي <span class="num">{{ $p->expires_at->format('Y-m-d') }}</span></span>
+                            @elseif ($p->expires_at && $p->expires_at->lte(today()->addDays(90)))<span class="pill pill--new">ينتهي <span class="num">{{ $p->expires_at->format('Y-m-d') }}</span></span>@endif
                         </td>
                         <td class="t-end"><a class="btn btn--sm btn--ghost" href="{{ route('admin.products.edit', $p) }}">تعديل</a></td>
                     </tr>

@@ -17,12 +17,14 @@
             @forelse ($customers as $c)
                 <tr>
                     <td>{{ $c->name }}</td>
-                    <td><a class="num" href="tel:{{ $c->phone }}" style="color:var(--link)">{{ $c->phone }}</a></td>
+                    <td><a class="num" href="tel:{{ $c->phone }}" style="color:var(--link)">{{ $c->phone }}</a><span class="t-sub">@if ($c->phone_verified_at)<span class="pill pill--ok">رقم مؤكد</span>@else<span class="pill pill--new">غير مؤكد</span>@endif</span></td>
                     <td>{{ $c->area ?: 'غير محددة' }}</td>
                     <td class="num">{{ $c->orders_count }}</td>
                     <td class="num">{{ $c->favorites_count }}</td>
                     <td><span class="t-sub">{{ $c->created_at->diffForHumans() }}</span></td>
-                    <td><div class="t-actions"><a class="btn btn--sm btn--ghost" target="_blank" rel="noopener" href="{{ \App\Support\Util::wa($c->phone, 'مرحباً '.$c->name.'، معك صيدلية الدلو.') }}">@icon('whatsapp') واتساب</a></div></td>
+                    <td><div class="t-actions"><a class="btn btn--sm btn--ghost" target="_blank" rel="noopener" href="{{ \App\Support\Util::wa($c->phone, 'مرحباً '.$c->name.'، معك صيدلية الدلو.') }}">@icon('whatsapp') واتساب</a>
+                        <form method="post" action="{{ route('admin.customers.verify', $c) }}">@csrf @method('put')<button class="btn btn--sm btn--ghost">{{ $c->phone_verified_at ? 'إلغاء التأكيد' : 'تأكيد الرقم' }}</button></form>
+                        <form method="post" action="{{ route('admin.customers.password', $c) }}" onsubmit="return confirm('إنشاء كلمة مرور جديدة لـ{{ $c->name }}؟ القديمة تتوقف.')">@csrf @method('put')<button class="btn btn--sm btn--ghost">كلمة مرور جديدة</button></form></div></td>
                 </tr>
             @empty
                 <tr><td colspan="7" class="empty">لا يوجد زبائن مسجلون بعد. يسجل الزبون من المتجر ليطلب تنبيه انخفاض السعر ويحفظ طلباته.</td></tr>

@@ -46,6 +46,7 @@
         </tbody>
         <tfoot>
             <tr><td colspan="3">مجموع المواد</td><td>@iqd($order->subtotal)</td></tr>
+            @if ($order->discount)<tr><td colspan="3">خصم الكود {{ $order->coupon_code }}</td><td>-@iqd($order->discount)</td></tr>@endif
             <tr><td colspan="3">التوصيل</td><td>{{ $order->delivery_fee ? \App\Support\Util::money($order->delivery_fee) : 'مجاني' }}</td></tr>
             <tr><td colspan="3">المطلوب دفعه عند الاستلام</td><td>@iqd($order->total)</td></tr>
         </tfoot>

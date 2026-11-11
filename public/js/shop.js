@@ -221,7 +221,7 @@
   const area = document.querySelector('[data-area]');
   if (area) {
     const fmt = (n) => Number(n).toLocaleString('en-US') + ' د.ع';
-    const subtotal = Number(area.dataset.subtotal);
+    const subtotal = Number(area.dataset.subtotal); // بعد خصم الكود إن وُجد
     const free = Number(area.dataset.free) || 0;
     const feeEl = document.querySelector('[data-fee-out]');
     const totalEl = document.querySelector('[data-total-out]');

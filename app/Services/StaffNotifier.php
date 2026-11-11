@@ -57,6 +57,12 @@ class StaffNotifier
         ], fn ($l) => $l !== null)));
     }
 
+    /** @return array{sent: int, failed: int} */
+    public function orderCancelledByCustomer(Order $order): array
+    {
+        return $this->broadcast('❌ <b>الزبون ألغى طلبه</b> <code>'.e($order->number)."</code>\n👤 ".e($order->customer_name).' · '.e($order->phone)."\nرجعت الكميات إلى المخزون.");
+    }
+
     /**
      * يرسل رسالة لموظف واحد ويحفظ نتيجة التسليم عليه.
      *
@@ -101,12 +107,23 @@ class StaffNotifier
                 $lines[] = '• '.e($item->name).' × '.$item->qty.' = '.Util::money($item->price * $item->qty);
             }
             $lines[] = '';
-            $lines[] = 'التوصيل: '.($order->delivery_fee ? Util::money($order->delivery_fee) : 'مجاني');
+            if ($order->discount) {
+                $lines[] = 'خصم الكود '.e((string) $order->coupon_code).': -'.Util::money($order->discount);
+            }
+            $lines[] = Util::isPickup($order->area) ? 'استلام من الصيدلية' : 'التوصيل: '.($order->delivery_fee ? Util::money($order->delivery_fee) : 'مجاني');
             $lines[] = '<b>المجموع: '.Util::money($order->total).'</b> (الدفع عند الاستلام)';
         }
         if ($order->prescription_image) {
             $lines[] = '';
             $lines[] = '📎 مرفقة صورة وصفة، تجدها في لوحة التحكم.';
+        }
+        // تنبيه الموظف بما قارب على النفاد بعد هذا الطلب
+        $low = \App\Models\Product::whereIn('id', $order->items->pluck('product_id')->filter())->where('stock', '<=', 5)->get();
+        if ($low->count()) {
+            $lines[] = '';
+            foreach ($low as $product) {
+                $lines[] = '⚠️ مخزون قليل: '.e($product->name).' ('.($product->stock < 1 ? 'نفد' : 'بقي '.$product->stock).')';
+            }
         }
         $lines[] = '';
         $lines[] = 'فتح الطلب: '.route('admin.orders.show', $order);

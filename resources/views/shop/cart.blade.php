@@ -48,13 +48,30 @@
                 <h2>ملخص الطلب</h2>
                 <dl class="sum">
                     <div><dt>مجموع المواد</dt><dd>@iqd($subtotal)</dd></div>
+                    @if ($discount)
+                        <div><dt>خصم الكود <span class="num">{{ $coupon->code }}</span></dt><dd style="color:var(--ok)">-@iqd($discount)</dd></div>
+                    @endif
                     <div><dt>{{ $deliveryOn ? 'التوصيل' : 'الاستلام' }}</dt><dd>{{ $deliveryOn ? 'يحسب حسب المنطقة' : 'من الصيدلية، بدون أجور' }}</dd></div>
                 </dl>
-                @php $free = $freeOver; @endphp
+                @if ($on['coupons'])
+                    <form method="post" action="{{ route('cart.coupon') }}" class="couponrow">
+                        @csrf
+                        @if ($coupon)
+                            <span class="couponrow__on">@icon('tag') {{ $coupon->label }}</span>
+                            <button class="link" name="action" value="remove">إزالة الكود</button>
+                        @else
+                            <label class="sr" for="code">كود الخصم</label>
+                            <input id="code" name="code" value="{{ old('code') }}" placeholder="عندك كود خصم؟" dir="ltr" autocomplete="off" required>
+                            <button class="btn btn--sm btn--ghost">تطبيق</button>
+                        @endif
+                    </form>
+                    @error('code')<span class="err" style="color:var(--coral);font-size:14.5px;font-weight:500">{{ $message }}</span>@enderror
+                @endif
+                @php $free = $freeOver; $afterDiscount = $subtotal - $discount; @endphp
                 @if ($free)
                     <div class="freebar">
-                        <i style="--w: {{ min(100, round($subtotal * 100 / $free)) }}%"></i>
-                        <p>@if ($subtotal < $free) أضف بقيمة @iqd($free - $subtotal) ليصبح التوصيل مجانياً. @else طلبك مؤهل للتوصيل المجاني. @endif</p>
+                        <i style="--w: {{ min(100, round($afterDiscount * 100 / $free)) }}%"></i>
+                        <p>@if ($afterDiscount < $free) أضف بقيمة @iqd($free - $afterDiscount) ليصبح التوصيل مجانياً. @else طلبك مؤهل للتوصيل المجاني. @endif</p>
                     </div>
                 @endif
                 <a class="btn btn--buy btn--block" style="margin-top:18px" href="{{ route('checkout') }}">إتمام الطلب</a>

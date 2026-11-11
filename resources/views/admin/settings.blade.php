@@ -98,14 +98,5 @@
     <button class="btn" style="margin-top:18px">حفظ الإعدادات</button>
 </form>
 
-<form class="card" method="post" action="{{ route('admin.settings.password') }}" style="margin-top:18px">
-    @csrf @method('put')
-    <h2>تغيير كلمة المرور</h2>
-    <div class="form form--3">
-        <div class="field"><label for="current_password">الحالية</label><input id="current_password" type="password" name="current_password" dir="ltr" autocomplete="current-password" required></div>
-        <div class="field"><label for="password">الجديدة</label><input id="password" type="password" name="password" dir="ltr" autocomplete="new-password" minlength="8" required></div>
-        <div class="field"><label for="password_confirmation">تأكيد الجديدة</label><input id="password_confirmation" type="password" name="password_confirmation" dir="ltr" autocomplete="new-password" required></div>
-    </div>
-    <button class="btn btn--ghost" style="margin-top:16px">تغيير كلمة المرور</button>
-</form>
+<div class="hint" style="margin-top:18px">تغيير كلمة مرورك من صفحة <a href="{{ route('admin.profile') }}" style="text-decoration:underline">حسابي</a>، وإضافة مستخدمين للوحة من <a href="{{ route('admin.users.index') }}" style="text-decoration:underline">مستخدمو اللوحة</a>.</div>
 @endsection

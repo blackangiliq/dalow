@@ -71,4 +71,17 @@ class AccountController extends Controller
             $added ? "أضيفت {$added} مادة إلى السلة".($missing ? "، و{$missing} غير متوفرة حالياً" : '') : 'مواد هذا الطلب غير متوفرة حالياً'
         );
     }
+
+    /** الزبون يلغي طلبه ما دام لم يُؤكَّد بعد */
+    public function cancel(Request $request, Order $order, \App\Services\StaffNotifier $notifier)
+    {
+        abort_unless($order->customer_id === $request->user('customer')->id, 404);
+        if ($order->status !== 'new') {
+            return back()->with('error', 'الطلب قيد التنفيذ ولا يمكن إلغاؤه من هنا. اتصل بالصيدلية.');
+        }
+        $order->changeStatus('cancelled', 'الزبون');
+        defer(fn () => $notifier->orderCancelledByCustomer($order));
+
+        return back()->with('ok', 'أُلغي الطلب '.$order->number);
+    }
 }

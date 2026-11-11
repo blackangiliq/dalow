@@ -6,12 +6,13 @@
 <div class="head">
     <div><h1>أهلاً {{ auth()->user()->name }}</h1><p>{{ now()->translatedFormat('l j F Y') }}</p></div>
     <div class="head__actions">
-        <a class="btn btn--ghost" href="{{ route('admin.import') }}">@icon('sheet') استيراد قائمة أدوية</a>
+        @if (auth()->user()->isAdmin())<a class="btn btn--ghost" href="{{ route('admin.import') }}">@icon('sheet') استيراد قائمة أدوية</a>@endif
         <a class="btn" href="{{ route('admin.products.create') }}">أضف منتجاً</a>
     </div>
 </div>
 
-@if (! $telegramLinked)
+@if (! auth()->user()->isAdmin())
+@elseif (! $telegramLinked)
     <div class="hint"><strong>إشعارات تيليجرام غير مفعلة.</strong> اربط حساب تيليجرام من صفحة <a href="{{ route('admin.telegram') }}" style="text-decoration:underline">إشعارات تيليجرام</a> ليصل كل طلب جديد إلى الموظفين.</div>
 @elseif (! $recipients)
     <div class="hint"><strong>لم تختر من يستلم الإشعارات.</strong> أضف الموظفين أو اخترهم من جهات الاتصال في <a href="{{ route('admin.staff.index') }}" style="text-decoration:underline">صفحة الموظفين</a>.</div>
@@ -19,11 +20,15 @@
     <div class="hint"><strong>{{ $failedStaff }} موظف لم يصله آخر إشعار.</strong> راجع السبب في <a href="{{ route('admin.staff.index') }}" style="text-decoration:underline">صفحة الموظفين</a>.</div>
 @endif
 
+@if ($expired)
+    <div class="flash flash--bad">@icon('alert') <span><strong>{{ $expired }} منتج انتهت صلاحيته</strong> وأُخفي من المتجر تلقائياً. <a href="{{ route('admin.products.index', ['expiry' => 'expired']) }}" style="text-decoration:underline">راجعها واسحبها من الرفوف</a></span></div>
+@endif
+
 <div class="stats stats--6">
     <a class="stat stat--hot" href="{{ route('admin.orders.index', ['status' => 'new']) }}"><span>طلبات تنتظر التأكيد</span><b class="num" data-new-count>{{ $newOrders }}</b><small>اضغط لعرضها</small></a>
     <div class="stat"><span>طلبات اليوم</span><b class="num">{{ $todayOrders }}</b><small>@iqd($todaySales)</small></div>
     <div class="stat"><span>مبيعات الشهر المسلّمة</span><b>{{ number_format($monthSales) }}</b><small>دينار عراقي</small></div>
-    <a class="stat" href="{{ route('admin.analytics') }}"><span>زوار اليوم</span><b class="num">{{ $visitorsToday }}</b><small>{{ $visitorsMonth }} هذا الشهر</small></a>
+    <a class="stat" href="{{ auth()->user()->isAdmin() ? route('admin.analytics') : '#' }}"><span>زوار اليوم</span><b class="num">{{ $visitorsToday }}</b><small>{{ $visitorsMonth }} هذا الشهر</small></a>
     <a class="stat" href="{{ route('admin.messages.index') }}"><span>رسائل غير مقروءة</span><b class="num">{{ $unread }}</b><small>من صفحة تواصل معنا</small></a>
     <a class="stat" href="{{ route('admin.products.index', ['stock' => 'low']) }}"><span>منتجات قاربت على النفاد</span><b class="num">{{ $lowStock->count() }}{{ $lowStock->count() >= 6 ? '+' : '' }}</b><small>من {{ $productCount }} منتج</small></a>
 </div>
@@ -96,7 +101,7 @@
     </div>
 </div>
 
-<div class="grid3">
+<div class="grid3 grid3--4">
     <div class="card">
         <h2>الأكثر مبيعاً في 30 يوماً</h2>
         @if ($top->count())
@@ -123,6 +128,17 @@
     </div>
 
     <div class="card">
+        <div class="card__head"><h2>تنتهي صلاحيتها قريباً</h2><a href="{{ route('admin.products.index', ['expiry' => 'soon']) }}">الكل</a></div>
+        <ul class="statuslist">
+            @forelse ($expiringSoon as $p)
+                <li><a href="{{ route('admin.products.edit', $p) }}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $p->name }}</span><span @class(['pill', 'pill--bad' => $p->expires_at->diffInDays(today(), true) <= 30, 'pill--new' => $p->expires_at->diffInDays(today(), true) > 30])>بعد {{ (int) today()->diffInDays($p->expires_at) }} يوماً</span></a></li>
+            @empty
+                <li class="empty">لا يوجد منتج ينتهي خلال 90 يوماً. أدخل تواريخ الانتهاء في المنتجات لتصلك التنبيهات.</li>
+            @endforelse
+        </ul>
+    </div>
+
+    <div class="card">
         <h2>الإشعارات والوصول السريع</h2>
         <div @class(['channel', 'channel--on' => $telegramLinked && $recipients])>
             <span class="channel__dot"></span>
@@ -132,10 +148,12 @@
             </div>
         </div>
         <div class="quick" style="margin-top:16px">
-            <a href="{{ route('admin.telegram') }}">@icon('send') تيليجرام</a>
-            <a href="{{ route('admin.staff.index') }}">@icon('users') الموظفون</a>
             <a href="{{ route('admin.orders.export') }}">@icon('sheet') تصدير الطلبات</a>
-            <a href="{{ route('admin.settings') }}">@icon('gear') الإعدادات</a>
+            <a href="{{ route('admin.products.export') }}">@icon('sheet') تصدير المنتجات</a>
+            @if (auth()->user()->isAdmin())
+                <a href="{{ route('admin.telegram') }}">@icon('send') تيليجرام</a>
+                <a href="{{ route('admin.appearance') }}">@icon('scan') واجهة الموقع</a>
+            @endif
         </div>
     </div>
 </div>

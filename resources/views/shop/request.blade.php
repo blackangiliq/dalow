@@ -13,6 +13,7 @@
 
     <form class="panel" style="margin-top:24px" method="post" action="{{ route('request.store') }}" enctype="multipart/form-data">
         @csrf
+        <div class="hp" aria-hidden="true"><label>اترك هذا الحقل فارغاً <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
         <div class="form">
             <div @class(['field', 'field--full', 'bad' => $errors->has('product_name')])>
                 <label for="product_name">اسم المنتج</label>

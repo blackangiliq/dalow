@@ -21,9 +21,11 @@ class CheckoutController extends Controller
             return redirect()->route('cart');
         }
 
-        return view('shop.checkout', [
+        $subtotal = $items->sum('line');
+
+        return view('shop.checkout', Cart::coupon($subtotal) + [
             'items' => $items,
-            'subtotal' => $items->sum('line'),
+            'subtotal' => $subtotal,
             'areas' => Util::areas(),
             'needsRx' => $items->contains(fn ($i) => $i->product->requires_prescription),
             'customer' => auth('customer')->user(),
@@ -52,15 +54,26 @@ class CheckoutController extends Controller
                 $subtotal += $product->price * $item->qty;
                 $lines[] = ['product_id' => $product->id, 'name' => $product->name, 'price' => $product->price, 'qty' => $item->qty];
             }
-            $fee = Util::deliveryFee($data['area'], $subtotal);
+            // كود الخصم يُفحص من جديد داخل العملية نفسها حتى لا يُستعمل أكثر من حده
+            $discount = 0;
+            $coupon = \App\Support\Ui::on('coupons') ? \App\Models\Coupon::where('code', (string) session('coupon'))->lockForUpdate()->first() : null;
+            if ($coupon && ! $coupon->rejection($subtotal)) {
+                $discount = $coupon->discountFor($subtotal);
+                $coupon->increment('used');
+            } else {
+                $coupon = null;
+            }
+            $fee = Util::deliveryFee($data['area'], $subtotal - $discount);
             $order = Order::create($data + [
+                'coupon_code' => $coupon?->code,
+                'discount' => $discount,
                 'number' => Order::newNumber(),
                 'customer_id' => auth('customer')->id(),
                 'type' => 'cart',
                 'prescription_image' => $request->file('prescription')?->store('prescriptions', 'local'),
                 'subtotal' => $subtotal,
                 'delivery_fee' => $fee,
-                'total' => $subtotal + $fee,
+                'total' => $subtotal - $discount + $fee,
             ]);
             $order->items()->createMany($lines);
 

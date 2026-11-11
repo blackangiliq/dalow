@@ -155,6 +155,15 @@ class DatabaseSeeder extends Seeder
             SearchSynonym::create(['term' => $term, 'expands_to' => $expandsTo]);
         }
 
+        // تواريخ انتهاء تجريبية ليظهر تنبيه الصلاحية في اللوحة (واحد منتهٍ فيختفي من المتجر)
+        foreach ([[4, 25], [17, 48], [33, 70], [45, 85], [58, 400], [2, 600], [50, -6]] as [$offset, $days]) {
+            Product::orderBy('id')->skip($offset)->first()?->update(['expires_at' => today()->addDays($days)]);
+        }
+
+        // كوبونات تجريبية
+        \App\Models\Coupon::create(['code' => 'DALU10', 'type' => 'percent', 'value' => 10, 'min_total' => 10000]);
+        \App\Models\Coupon::create(['code' => 'WELCOME2000', 'type' => 'fixed', 'value' => 2000, 'min_total' => 15000, 'max_uses' => 100, 'expires_at' => today()->addMonths(3)]);
+
         // موظفون تجريبيون، استبدلهم بأرقام موظفيك من لوحة التحكم
         foreach ([['د. أحمد الدلو', '07700000001', 'صيدلاني مسؤول'], ['زينب كريم', '07800000002', 'مساعد صيدلاني'], ['علي حسين', '07500000003', 'مندوب توصيل']] as [$name, $phone, $role]) {
             Staff::create(compact('name', 'phone', 'role'));

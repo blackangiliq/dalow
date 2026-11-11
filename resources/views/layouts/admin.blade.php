@@ -31,28 +31,34 @@
             </svg>
             صيدلية الدلو
         </a>
+        @php $isAdmin = auth()->user()->isAdmin(); @endphp
         <nav aria-label="القائمة">
             <a href="{{ route('admin.dashboard') }}" @class(['on' => request()->routeIs('admin.dashboard')])>@icon('home') الرئيسية</a>
-            <a href="{{ route('admin.analytics') }}" @class(['on' => request()->routeIs('admin.analytics')])>@icon('chart') الإحصاءات والزوار</a>
+            @if ($isAdmin)<a href="{{ route('admin.analytics') }}" @class(['on' => request()->routeIs('admin.analytics')])>@icon('chart') الإحصاءات والزوار</a>@endif
             <span class="side__label">المبيعات</span>
             <a href="{{ route('admin.orders.index') }}" @class(['on' => request()->routeIs('admin.orders.*')])>@icon('list') الطلبات <span class="count num" data-new-count @if (! $pendingOrders) hidden @endif>{{ $pendingOrders }}</span></a>
             <a href="{{ route('admin.requests.index') }}" @class(['on' => request()->routeIs('admin.requests.*')])>@icon('search') طلبات توفير منتج @if ($newRequests)<span class="count num">{{ $newRequests }}</span>@endif</a>
             <a href="{{ route('admin.price-alerts') }}" @class(['on' => request()->routeIs('admin.price-alerts')])>@icon('bell') تنبيهات السعر</a>
+            @if ($isAdmin)<a href="{{ route('admin.coupons.index') }}" @class(['on' => request()->routeIs('admin.coupons.*')])>@icon('tag') كوبونات الخصم</a>@endif
             <a href="{{ route('admin.customers.index') }}" @class(['on' => request()->routeIs('admin.customers.*')])>@icon('user') الزبائن</a>
             <a href="{{ route('admin.messages.index') }}" @class(['on' => request()->routeIs('admin.messages.*')])>@icon('chat') الرسائل <span class="count num" data-unread-count @if (! $unreadMessages) hidden @endif>{{ $unreadMessages }}</span></a>
             <span class="side__label">المنتجات</span>
             <a href="{{ route('admin.products.index') }}" @class(['on' => request()->routeIs('admin.products.*')])>@icon('pill') المنتجات</a>
-            <a href="{{ route('admin.import') }}" @class(['on' => request()->routeIs('admin.import*')])>@icon('sheet') استيراد من Excel</a>
-            <a href="{{ route('admin.categories.index') }}" @class(['on' => request()->routeIs('admin.categories.*')])>@icon('tag') الأقسام</a>
-            <span class="side__label">الإعداد</span>
-            <a href="{{ route('admin.appearance') }}" @class(['on' => request()->routeIs('admin.appearance')])>@icon('scan') واجهة الموقع</a>
-            <a href="{{ route('admin.faqs.index') }}" @class(['on' => request()->routeIs('admin.faqs.*')])>@icon('info') الأسئلة الشائعة</a>
-            <a href="{{ route('admin.staff.index') }}" @class(['on' => request()->routeIs('admin.staff.*')])>@icon('users') الموظفون</a>
-            <a href="{{ route('admin.telegram') }}" @class(['on' => request()->routeIs('admin.telegram*')])>@icon('send') إشعارات تيليجرام</a>
-            <a href="{{ route('admin.settings') }}" @class(['on' => request()->routeIs('admin.settings')])>@icon('gear') الإعدادات</a>
+            @if ($isAdmin)
+                <a href="{{ route('admin.import') }}" @class(['on' => request()->routeIs('admin.import*')])>@icon('sheet') استيراد من Excel</a>
+                <a href="{{ route('admin.categories.index') }}" @class(['on' => request()->routeIs('admin.categories.*')])>@icon('box') الأقسام</a>
+                <span class="side__label">الإعداد</span>
+                <a href="{{ route('admin.appearance') }}" @class(['on' => request()->routeIs('admin.appearance')])>@icon('scan') واجهة الموقع</a>
+                <a href="{{ route('admin.faqs.index') }}" @class(['on' => request()->routeIs('admin.faqs.*')])>@icon('info') الأسئلة الشائعة</a>
+                <a href="{{ route('admin.staff.index') }}" @class(['on' => request()->routeIs('admin.staff.*')])>@icon('users') مستلمو الإشعارات</a>
+                <a href="{{ route('admin.telegram') }}" @class(['on' => request()->routeIs('admin.telegram*')])>@icon('send') إشعارات تيليجرام</a>
+                <a href="{{ route('admin.users.index') }}" @class(['on' => request()->routeIs('admin.users.*')])>@icon('shield') مستخدمو اللوحة</a>
+                <a href="{{ route('admin.settings') }}" @class(['on' => request()->routeIs('admin.settings')])>@icon('gear') الإعدادات</a>
+            @endif
         </nav>
         <div class="side__end">
             <button type="button" data-theme-toggle><span class="theme-moon">@icon('moon')</span><span class="theme-sun">@icon('sun')</span> <span class="theme-moon">الوضع الداكن</span><span class="theme-sun">الوضع الفاتح</span></button>
+            <a href="{{ route('admin.profile') }}" @class(['on' => request()->routeIs('admin.profile')])>@icon('user') حسابي ({{ auth()->user()->name }})</a>
             <a href="{{ route('home') }}" target="_blank" rel="noopener">@icon('cart') عرض المتجر</a>
             <form method="post" action="{{ route('admin.logout') }}">@csrf <button>@icon('logout') تسجيل الخروج</button></form>
         </div>

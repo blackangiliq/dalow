@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
         Paginator::defaultView('partials.pagination');
 
         // حدود مستقلة لكل نوع من الطلبات حتى لا يستهلك البحث حصة إرسال الطلب أو تسجيل الدخول
-        foreach (['orders' => 6, 'login' => 6, 'track' => 20, 'suggest' => 90, 'contact' => 4, 'events' => 60] as $name => $perMinute) {
+        foreach (['orders' => 6, 'login' => 6, 'track' => 20, 'suggest' => 90, 'contact' => 4, 'events' => 60, 'codes' => 3] as $name => $perMinute) {
             RateLimiter::for($name, fn (Request $request) => Limit::perMinute($perMinute)->by($name.'|'.$request->ip()));
         }
 

@@ -40,8 +40,11 @@
             @endforeach
             <dl class="sum" style="border-top:1.5px solid var(--line);padding-top:12px;margin-top:12px">
                 <div><dt>مجموع المواد</dt><dd>@iqd($subtotal)</dd></div>
+                @if ($discount)
+                    <div><dt>خصم الكود <span class="num">{{ $coupon->code }}</span></dt><dd style="color:var(--ok)">-@iqd($discount)</dd></div>
+                @endif
                 <div><dt>{{ $deliveryOn ? 'التوصيل' : 'الاستلام' }}</dt><dd data-fee-out>اختر المنطقة</dd></div>
-                <div class="total"><dt>المجموع</dt><dd data-total-out>@iqd($subtotal)</dd></div>
+                <div class="total"><dt>المجموع</dt><dd data-total-out>@iqd($subtotal - $discount)</dd></div>
             </dl>
             <div class="note note--info" style="background:#fff">@icon('cash') <p>الدفع نقداً عند الاستلام.</p></div>
             <button class="btn btn--buy btn--block" style="margin-top:18px">تأكيد الطلب</button>

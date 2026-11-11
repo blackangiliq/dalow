@@ -17,6 +17,11 @@ class Order extends Model
         'cancelled' => 'ملغي',
     ];
 
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
     public function items()
     {
         return $this->hasMany(OrderItem::class);
@@ -42,6 +47,9 @@ class Order extends Model
             }
             $this->update(['status' => $status, 'handled_by' => $by ?? $this->handled_by]);
         });
+        if ($this->wasChanged('status')) {
+            app(\App\Services\CustomerNotifier::class)->orderStatusChanged($this);
+        }
     }
 
     public static function newNumber(): string

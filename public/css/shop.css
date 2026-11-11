@@ -702,3 +702,11 @@ html[data-theme=dark] .toast { box-shadow: 0 0 0 1px var(--line), 0 18px 40px -1
 html[data-theme=dark] .result--no h2 .ico { color: var(--saffron); }
 html[data-theme=dark] input::placeholder, html[data-theme=dark] textarea::placeholder { color: #7f93ab; }
 html[data-theme=dark] .pcard__media img, html[data-theme=dark] .pview__media img, html[data-theme=dark] .line__ico img { background: #fff; border-radius: 10px; }
+
+/* ---------- كود الخصم وحقل الحماية ---------- */
+.couponrow { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+.couponrow input { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--card); outline: 0; text-align: end; }
+.couponrow input:focus { border-color: var(--water); }
+.couponrow__on { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; color: var(--ok); flex: 1; }
+.hp { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); opacity: 0; pointer-events: none; }
+html[data-theme=dark] .couponrow__on { color: #7fe0b0; }

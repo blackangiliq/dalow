@@ -12,7 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['feature' => \App\Http\Middleware\FeatureEnabled::class]);
+        $middleware->alias([
+            'feature' => \App\Http\Middleware\FeatureEnabled::class,
+            'admin' => \App\Http\Middleware\RequireRole::class,
+            'honeypot' => \App\Http\Middleware\Honeypot::class,
+        ]);
+        $middleware->web(append: [\App\Http\Middleware\SecurityHeaders::class]);
         // الزبون غير المسجل يذهب لصفحة دخول الزبائن، وزائر لوحة التحكم لصفحة دخول المدير
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('admin', 'admin/*') ? route('login') : route('customer.login'));
     })
