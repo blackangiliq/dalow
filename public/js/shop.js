@@ -279,6 +279,26 @@
     }, { passive: true });
   }
 
+  // الملف الصحي: اختيارات الحساسية السريعة، وإظهار ما يخص الإجابة
+  document.querySelectorAll('[data-chip]').forEach((chip) => chip.addEventListener('click', () => {
+    const input = document.querySelector(chip.dataset.chipTarget || '#allergies');
+    if (!input) return;
+    const parts = input.value.split(/[،,]/).map((v) => v.trim()).filter(Boolean);
+    if (!parts.includes(chip.dataset.chip)) parts.push(chip.dataset.chip);
+    input.value = parts.join('، ');
+    input.focus();
+  }));
+  const ask = document.querySelector('[data-allergy-ask]');
+  if (ask) {
+    const more = ask.querySelector('[data-allergy-more]');
+    ask.addEventListener('change', () => { more.hidden = ask.querySelector('input[name=allergy_answer]:checked')?.value !== 'yes'; });
+  }
+  const gender = document.querySelector('[data-gender]');
+  if (gender) {
+    const preg = document.querySelector('[data-pregnancy]');
+    gender.addEventListener('change', () => { preg.hidden = gender.value !== 'female'; });
+  }
+
   // اسم ملف الوصفة بعد اختياره
   document.querySelectorAll('.drop input[type=file]').forEach((input) => {
     input.addEventListener('change', () => {

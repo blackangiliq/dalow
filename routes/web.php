@@ -6,6 +6,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CustomerAuthController;
 use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProductRequestController;
 use App\Http\Controllers\ShopController;
@@ -65,6 +66,18 @@ Route::middleware(TrackVisit::class)->group(function () {
             Route::put('/account', [AccountController::class, 'update'])->name('account.update');
             Route::post('/account/reorder/{order}', [AccountController::class, 'reorder'])->name('account.reorder');
             Route::post('/account/orders/{order}/cancel', [AccountController::class, 'cancel'])->name('account.cancel');
+
+            // الملف الصحي
+            Route::post('/health/profiles', [HealthController::class, 'store'])->name('health.store');
+            Route::put('/health/profiles/{profile}', [HealthController::class, 'update'])->name('health.update');
+            Route::delete('/health/profiles/{profile}', [HealthController::class, 'destroy'])->name('health.destroy');
+            Route::post('/health/profiles/{profile}/allergies', [HealthController::class, 'allergyStore'])->name('health.allergy');
+            Route::delete('/health/profiles/{profile}/allergies/{allergy}', [HealthController::class, 'allergyDestroy'])->name('health.allergy.destroy');
+            Route::post('/health/profiles/{profile}/documents', [HealthController::class, 'documentStore'])->name('health.document')->middleware('throttle:contact');
+            Route::delete('/health/documents/{document}', [HealthController::class, 'documentDestroy'])->name('health.document.destroy');
+            Route::get('/health/documents/{document}', [HealthController::class, 'documentFile'])->name('health.document.file');
+            Route::post('/health/reminders/{product}', [HealthController::class, 'reminderStore'])->name('health.reminder');
+            Route::delete('/health/reminders/{reminder}', [HealthController::class, 'reminderDestroy'])->name('health.reminder.destroy');
             Route::get('/phone/verify', [CustomerAuthController::class, 'showVerify'])->name('customer.verify');
             Route::post('/phone/verify', [CustomerAuthController::class, 'confirmVerify'])->middleware('throttle:login');
             Route::post('/phone/verify/resend', [CustomerAuthController::class, 'resendVerify'])->name('customer.verify.resend')->middleware('throttle:codes');
@@ -102,7 +115,14 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/customers', [Admin\CustomerController::class, 'index'])->name('customers.index');
     Route::put('/customers/{customer}/verify', [Admin\CustomerController::class, 'verify'])->name('customers.verify');
     Route::put('/customers/{customer}/password', [Admin\CustomerController::class, 'password'])->name('customers.password');
+    Route::get('/customers/{customer}', [Admin\CustomerController::class, 'show'])->name('customers.show');
+    Route::put('/customers/{customer}/note', [Admin\CustomerController::class, 'note'])->name('customers.note');
     Route::get('/price-alerts', [Admin\PriceAlertController::class, 'index'])->name('price-alerts');
+
+    Route::get('/care', [Admin\CareController::class, 'index'])->name('care');
+    Route::get('/care/documents/{document}', [Admin\CareController::class, 'documentFile'])->name('care.document');
+    Route::put('/care/documents/{document}', [Admin\CareController::class, 'review'])->name('care.review');
+    Route::put('/care/followups/{order}', [Admin\CareController::class, 'followedUp'])->name('care.followup');
 
     Route::get('/requests', [Admin\ProductRequestController::class, 'index'])->name('requests.index');
     Route::put('/requests/{productRequest}', [Admin\ProductRequestController::class, 'update'])->name('requests.update');

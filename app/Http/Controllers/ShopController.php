@@ -119,6 +119,8 @@ class ShopController extends Controller
             'recent' => $recent,
             'soldWeek' => (int) OrderItem::where('product_id', $product->id)->where('created_at', '>=', now()->subDays(7))->sum('qty'),
             'isFavorite' => auth('customer')->check() && auth('customer')->user()->favorites()->whereKey($product->id)->exists(),
+            'allergyHits' => $this->allergyHits($product),
+            'reminder' => auth('customer')->user()?->refillReminders()->where('product_id', $product->id)->first(),
         ]);
     }
 
@@ -172,5 +174,22 @@ class ShopController extends Controller
 
         return Product::active()->with('category')->whereIn('id', $ids)->get()
             ->sortBy(fn ($p) => array_search($p->id, $ids))->take(4)->values();
+    }
+
+    /** @return array<int, array{profile: \App\Models\HealthProfile, substance: string, via: ?string}> */
+    private function allergyHits(Product $product): array
+    {
+        $customer = auth('customer')->user();
+        if (! $customer || ! \App\Support\Ui::on('health_profile')) {
+            return [];
+        }
+        $hits = [];
+        foreach ($customer->healthProfiles()->with('allergies')->get() as $profile) {
+            foreach (\App\Support\AllergyCheck::conflicts($profile, $product) as $hit) {
+                $hits[] = ['profile' => $profile, 'substance' => $hit['allergy']->substance, 'via' => $hit['via']];
+            }
+        }
+
+        return $hits;
     }
 }

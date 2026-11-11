@@ -20,6 +20,8 @@
         <a href="{{ route('account') }}" @class(['on' => $tab === 'orders'])>@icon('list') طلباتي</a>
         <a href="{{ route('account', ['tab' => 'favorites']) }}" @class(['on' => $tab === 'favorites'])>@icon('heart') تنبيهات السعر @if ($favoriteCount)<span class="num">({{ $favoriteCount }})</span>@endif</a>
         <a href="{{ route('account', ['tab' => 'notifications']) }}" @class(['on' => $tab === 'notifications'])>@icon('bell') الإشعارات @if ($unreadCount && $tab !== 'notifications')<b class="num">{{ $unreadCount }}</b>@endif</a>
+        @if ($on['health_profile'])<a href="{{ route('account', ['tab' => 'health']) }}" @class(['on' => $tab === 'health'])>@icon('heart') ملفي الصحي</a>@endif
+        @if ($on['refill_reminders'])<a href="{{ route('account', ['tab' => 'reminders']) }}" @class(['on' => $tab === 'reminders'])>@icon('repeat') تذكير الدواء</a>@endif
         <a href="{{ route('account', ['tab' => 'profile']) }}" @class(['on' => $tab === 'profile'])>@icon('user') بياناتي</a>
     </nav>
 
@@ -29,7 +31,7 @@
                 <div>
                     <b class="num">{{ $o->number }}</b>
                     <span @class(['badge', 'badge--go' => in_array($o->status, ['confirmed', 'preparing', 'shipping']), 'badge--done' => $o->status === 'delivered', 'badge--off' => $o->status === 'cancelled'])>{{ $o->status === 'new' ? 'استلمنا الطلب' : $o->status_label }}</span>
-                    <small>{{ $o->created_at->translatedFormat('j F Y') }} · {{ $o->type === 'prescription' ? 'طلب بوصفة طبية' : $o->items->pluck('name')->take(3)->implode('، ').($o->items->count() > 3 ? ' وغيرها' : '') }}</small>
+                    <small>{{ $o->created_at->translatedFormat('j F Y') }} · @if ($o->healthProfile && $o->healthProfile->relation !== 'self') لـ{{ $o->healthProfile->name }} · @endif{{ $o->type === 'prescription' ? 'طلب بوصفة طبية' : $o->items->pluck('name')->take(3)->implode('، ').($o->items->count() > 3 ? ' وغيرها' : '') }}</small>
                 </div>
                 <div class="acts">
                     @if ($o->total)<strong>@iqd($o->total)</strong>@endif
@@ -45,6 +47,12 @@
         @empty
             <div class="empty">@icon('cart')<h2>لا توجد طلبات في حسابك بعد</h2><p>كل طلب تسجله وأنت داخل حسابك يُحفظ هنا لتعيد طلبه بضغطة.</p><a class="btn" href="{{ route('products') }}">تصفح المنتجات</a></div>
         @endforelse
+
+    @elseif ($tab === 'health')
+        @include('shop.account._health')
+
+    @elseif ($tab === 'reminders')
+        @include('shop.account._reminders')
 
     @elseif ($tab === 'favorites')
         @if ($favorites->count())

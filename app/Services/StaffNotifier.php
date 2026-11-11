@@ -63,6 +63,54 @@ class StaffNotifier
         return $this->broadcast('❌ <b>الزبون ألغى طلبه</b> <code>'.e($order->number)."</code>\n👤 ".e($order->customer_name).' · '.e($order->phone)."\nرجعت الكميات إلى المخزون.");
     }
 
+    /** @return array{sent: int, failed: int} */
+    public function documentUploaded(\App\Models\HealthDocument $document): array
+    {
+        $profile = $document->profile;
+        $customer = $profile->customer;
+
+        return $this->broadcast(implode("\n", array_filter([
+            '📄 <b>زبون أرسل '.e($document->kind_label).' للقراءة</b>',
+            '',
+            '👤 '.e($customer->name).($profile->relation !== 'self' ? ' (لـ'.e($profile->name).')' : ''),
+            '📞 '.e($customer->phone),
+            '📌 '.e($document->title),
+            $document->customer_note ? '📝 '.e($document->customer_note) : null,
+            '',
+            'اقرأه ورد عليه: '.route('admin.customers.show', $customer),
+        ], fn ($l) => $l !== null)));
+    }
+
+    /**
+     * أسطر الملف الصحي في إشعار الطلب: الحساسية أولاً، ثم ما يغيّر اختيار الدواء.
+     *
+     * @return string[]
+     */
+    public function patientLines(Order $order): array
+    {
+        $profile = $order->healthProfile;
+        if (! $profile || ! \App\Support\Ui::on('health_profile')) {
+            return [];
+        }
+        $profile->loadMissing('allergies');
+        $lines = [''];
+        $who = $profile->relation === 'self' ? 'الزبون' : 'المريض: '.e($profile->name).' ('.e(\App\Models\HealthProfile::RELATIONS[$profile->relation] ?? '').')';
+        $lines[] = '🩺 <b>'.$who.'</b>'.($profile->age_label ? ' · العمر '.$profile->age_label : '').($profile->pregnancy ? ' · '.\App\Models\HealthProfile::PREGNANCY[$profile->pregnancy] : '');
+        if ($profile->allergies->count()) {
+            $lines[] = '⚠️ <b>حساسية من:</b> '.e($profile->allergies->map(fn ($a) => $a->substance.' ('.$a->severity_label.')')->implode('، '));
+        } elseif ($profile->no_known_allergies) {
+            $lines[] = 'لا توجد حساسية معروفة';
+        }
+        if ($profile->condition_labels) {
+            $lines[] = 'أمراض مزمنة: '.e(implode('، ', $profile->condition_labels));
+        }
+        if ($order->allergy_ack) {
+            $lines[] = '🚨 <b>تعارض مع الحساسية:</b> '.e($order->allergy_ack).' (أقرّ الزبون بعلمه، راجعه قبل الصرف)';
+        }
+
+        return $lines;
+    }
+
     /**
      * يرسل رسالة لموظف واحد ويحفظ نتيجة التسليم عليه.
      *
@@ -99,6 +147,9 @@ class StaffNotifier
         $lines[] = '📍 '.e($order->area).'، '.e($order->address);
         if ($order->notes) {
             $lines[] = '📝 '.e($order->notes);
+        }
+        foreach ($this->patientLines($order) as $line) {
+            $lines[] = $line;
         }
         if ($order->items->count()) {
             $lines[] = '';

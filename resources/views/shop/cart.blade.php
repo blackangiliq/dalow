@@ -25,6 +25,9 @@
                         <div>
                             <a class="line__name" href="{{ route('product', $item->product) }}">{{ $item->product->name }}</a>
                             <div class="line__meta">@iqd($item->product->price) للقطعة @if ($item->product->requires_prescription) · يحتاج وصفة @endif</div>
+                            @foreach ($conflicts[$item->product->id] ?? [] as $hit)
+                                <div class="line__warn">@icon('alert') حساسية {{ $hit['profile']->relation === 'self' ? 'مسجلة لك' : 'مسجلة لـ'.$hit['profile']->name }} من {{ $hit['substance'] }}</div>
+                            @endforeach
                         </div>
                         <div class="line__end">
                             <strong>@iqd($item->line)</strong>

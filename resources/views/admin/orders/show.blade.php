@@ -13,8 +13,24 @@
     </div>
 </div>
 
+@if ($conflicts || $order->allergy_ack)
+    <div class="flash flash--bad">@icon('alert') <span><strong>تعارض مع الحساسية.</strong> {{ $order->allergy_ack ? 'أقرّ الزبون بعلمه: '.$order->allergy_ack.'.' : '' }} راجع الدواء واتصل بالزبون قبل الصرف.</span></div>
+@endif
+
 <div class="cols">
     <div>
+        @if ($order->healthProfile && \App\Support\Ui::on('health_profile'))
+        <div class="card card--patient">
+            <div class="card__head">
+                <h2>ملف المريض {{ $order->healthProfile->relation === 'self' ? '' : '(طلب لـ'.$order->healthProfile->name.')' }}</h2>
+                @if ($order->customer)<a href="{{ route('admin.customers.show', $order->customer) }}">الملف الكامل وطلباته السابقة</a>@endif
+            </div>
+            @include('admin.partials.patient', ['profile' => $order->healthProfile])
+        </div>
+        @elseif ($order->customer)
+        <div class="hint">الزبون <a href="{{ route('admin.customers.show', $order->customer) }}" style="text-decoration:underline">{{ $order->customer->name }}</a> لم يعبئ ملفه الصحي. اسأله عن الحساسية قبل الصرف.</div>
+        @endif
+
         <div class="card">
             <h2>{{ $order->type === 'prescription' ? 'طلب بوصفة طبية' : 'المواد المطلوبة' }}</h2>
             @if ($order->items->count())
@@ -23,7 +39,7 @@
                     <thead><tr><th>المادة</th><th>السعر</th><th>الكمية</th><th class="t-end">المجموع</th></tr></thead>
                     <tbody>
                     @foreach ($order->items as $item)
-                        <tr><td>{{ $item->name }}</td><td>@iqd($item->price)</td><td class="num">{{ $item->qty }}</td><td class="t-end">@iqd($item->price * $item->qty)</td></tr>
+                        <tr @if (isset($conflicts[$item->id])) class="row-warn" @endif><td>{{ $item->name }}@foreach ($conflicts[$item->id] ?? [] as $hit)<span class="t-sub warn">⚠ يتعارض مع حساسية {{ $hit['allergy']->substance }} ({{ $hit['allergy']->severity_label }})@if ($hit['via']) · مجموعة {{ $hit['via'] }}@endif</span>@endforeach</td><td>@iqd($item->price)</td><td class="num">{{ $item->qty }}</td><td class="t-end">@iqd($item->price * $item->qty)</td></tr>
                     @endforeach
                     @if ($order->discount)<tr><td colspan="3">خصم الكود <span class="num">{{ $order->coupon_code }}</span></td><td class="t-end">-@iqd($order->discount)</td></tr>@endif
                     <tr><td colspan="3">التوصيل</td><td class="t-end">{{ $order->delivery_fee ? \App\Support\Util::money($order->delivery_fee) : 'مجاني' }}</td></tr>
@@ -50,7 +66,7 @@
         <div class="card">
             <h2>الزبون</h2>
             <dl class="kv">
-                <dt>الاسم</dt><dd>{{ $order->customer_name }}</dd>
+                <dt>الاسم</dt><dd>@if ($order->customer)<a href="{{ route('admin.customers.show', $order->customer) }}" style="color:var(--link)">{{ $order->customer_name }}</a> <span class="pill pill--ok">له حساب</span>@else{{ $order->customer_name }}@endif</dd>
                 <dt>الموبايل</dt><dd><a class="num" href="tel:{{ $order->phone }}" style="color:var(--water-deep)">{{ $order->phone }}</a></dd>
                 <dt>المنطقة</dt><dd>{{ $order->area }}</dd>
                 <dt>العنوان</dt><dd>{{ $order->address }}</dd>
@@ -61,6 +77,17 @@
                 <a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="{{ \App\Support\Util::wa($order->phone, 'مرحباً '.$order->customer_name.'، معك صيدلية الدلو بخصوص طلبك رقم '.$order->number) }}">@icon('whatsapp') واتساب</a>
             </div>
         </div>
+
+        @if ($previous->count())
+        <div class="card">
+            <h2>طلباته السابقة</h2>
+            <ul class="statuslist">
+                @foreach ($previous as $p)
+                    <li><a href="{{ route('admin.orders.show', $p) }}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="num">{{ $p->created_at->format('j/n') }}</span> · {{ $p->type === 'prescription' ? 'وصفة' : $p->items->pluck('name')->implode('، ') }}</span><span class="pill pill--{{ $p->status }}">{{ $p->status_label }}</span></a></li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
 
         <div class="card">
             <h2>حالة الطلب</h2>

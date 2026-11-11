@@ -22,6 +22,11 @@ class Order extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function healthProfile()
+    {
+        return $this->belongsTo(HealthProfile::class);
+    }
+
     public function items()
     {
         return $this->hasMany(OrderItem::class);

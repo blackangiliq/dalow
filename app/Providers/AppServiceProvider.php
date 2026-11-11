@@ -87,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
             'pendingOrders' => Order::where('status', 'new')->count(),
             'unreadMessages' => ContactMessage::where('is_read', false)->count(),
             'newRequests' => \App\Models\ProductRequest::where('status', 'new')->count(),
+            'pendingDocs' => \App\Support\Ui::on('health_documents') ? \App\Models\HealthDocument::whereNull('reviewed_at')->count() : 0,
         ]));
     }
 }

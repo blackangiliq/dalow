@@ -83,4 +83,28 @@ class Cart
 
         return $items;
     }
+
+    /**
+     * تعارض مواد السلة مع حساسيات ملفات الزبون (هو وعائلته).
+     *
+     * @return array<int, array<int, array{profile: \App\Models\HealthProfile, substance: string, via: ?string}>> رقم المنتج => التعارضات
+     */
+    public static function allergyConflicts(Collection $items): array
+    {
+        $customer = auth('customer')->user();
+        if (! $customer || ! \App\Support\Ui::on('health_profile') || ! \App\Support\Ui::on('allergy_alerts')) {
+            return [];
+        }
+        $profiles = $customer->healthProfiles()->with('allergies')->get()->filter(fn ($p) => $p->allergies->isNotEmpty());
+        $out = [];
+        foreach ($items as $item) {
+            foreach ($profiles as $profile) {
+                foreach (\App\Support\AllergyCheck::conflicts($profile, $item->product) as $hit) {
+                    $out[$item->product->id][] = ['profile' => $profile, 'substance' => $hit['allergy']->substance, 'via' => $hit['via']];
+                }
+            }
+        }
+
+        return $out;
+    }
 }

@@ -25,19 +25,43 @@ class CustomerAuthController extends Controller
             'name' => 'required|string|min:3|max:80',
             'phone' => ['required', 'regex:/^07[3-9]\d{8}$/', Rule::unique('customers', 'phone')],
             'password' => 'required|string|min:6|confirmed',
+            'allergy_answer' => 'nullable|in:none,yes',
+            'allergies' => 'nullable|required_if:allergy_answer,yes|string|max:500',
+            'health_consent' => 'accepted_if:allergy_answer,yes',
         ], [
+            'allergies.required_if' => 'اكتب الأدوية التي لديك حساسية منها، أو اختر «لا توجد حساسية»',
+            'health_consent.accepted_if' => 'وافق على حفظ معلوماتك الصحية لنحفظ حساسيتك',
             'phone.regex' => 'اكتب رقم موبايل عراقي صحيح، مثل 07701234567',
             'phone.unique' => 'هذا الرقم مسجل مسبقاً. سجّل الدخول به.',
             'password.min' => 'كلمة المرور 6 أحرف على الأقل',
             'password.confirmed' => 'تأكيد كلمة المرور غير مطابق',
         ]);
 
+        $health = array_intersect_key($data, array_flip(['allergy_answer', 'allergies', 'health_consent']));
+        $data = array_diff_key($data, $health);
         $customer = Customer::create($data + [
             'notify_offers' => $request->boolean('notify_offers'),
             'notify_telegram' => $request->boolean('notify_telegram'),
         ]);
         Auth::guard('customer')->login($customer, true);
         $request->session()->regenerate();
+
+        // سؤال الحساسية عند التسجيل يبدأ ملفه الصحي
+        if (\App\Support\Ui::on('health_profile')) {
+            $profile = $customer->selfProfile();
+            if (($health['allergy_answer'] ?? null) === 'none') {
+                $profile->update(['no_known_allergies' => true]);
+            } elseif (($health['allergy_answer'] ?? null) === 'yes') {
+                foreach (array_filter(array_map('trim', preg_split('/[،,]+/u', (string) $health['allergies']))) as $substance) {
+                    $profile->allergies()->firstOrCreate(['substance' => mb_substr($substance, 0, 120)], ['severity' => 'moderate']);
+                }
+                $customer->forceFill(['health_consent_at' => now()])->save();
+            }
+            // بعد التسجيل يكمل ملفه الصحي، إلا إن كان في طريقه لصفحة أخرى (منتج أراد متابعة سعره مثلاً)
+            if (! session()->has('url.intended')) {
+                session(['url.intended' => route('account', ['tab' => 'health', 'welcome' => 1])]);
+            }
+        }
 
         // إن كانت خاصية التأكيد مشغلة نرسل كوداً على رقمه قبل أي شيء آخر
         if (app(PhoneCodes::class)->available()) {

@@ -14,13 +14,28 @@ class AccountController extends Controller
     public function index(Request $request)
     {
         $customer = $request->user('customer');
-        $tab = in_array($request->query('tab'), ['favorites', 'notifications', 'profile'], true) ? $request->query('tab') : 'orders';
+        $tabs = ['favorites', 'notifications', 'profile'];
+        if (\App\Support\Ui::on('health_profile')) {
+            $tabs[] = 'health';
+        }
+        if (\App\Support\Ui::on('refill_reminders')) {
+            $tabs[] = 'reminders';
+            app(\App\Services\CareService::class)->sendDueReminders($customer->id);
+        }
+        $tab = in_array($request->query('tab'), $tabs, true) ? $request->query('tab') : 'orders';
 
         $data = match ($tab) {
+            'health' => $this->healthData($request, $customer),
+            'reminders' => [
+                'reminders' => $customer->refillReminders()->with('product')->orderBy('next_at')->get(),
+                // ما اشتراه سابقاً ويصلح للتذكير الدوري
+                'bought' => \App\Models\Product::active()->whereIn('id', \App\Models\OrderItem::whereIn('order_id', $customer->orders()->where('status', '!=', 'cancelled')->pluck('id'))->pluck('product_id')->filter())
+                    ->whereNotIn('id', $customer->refillReminders()->pluck('product_id'))->with('category')->get(),
+            ],
             'favorites' => ['favorites' => $customer->favorites()->with('category')->latest('favorites.created_at')->get()],
             'notifications' => ['notifications' => $customer->notifications()->latest()->take(50)->get()],
             'profile' => ['areas' => Util::areas()],
-            default => ['orders' => $customer->orders()->with('items')->latest()->take(30)->get()],
+            default => ['orders' => $customer->orders()->with(['items', 'healthProfile'])->latest()->take(30)->get()],
         };
         if ($tab === 'notifications') {
             // فتح الصفحة يعني أن الزبون رآها
@@ -83,5 +98,15 @@ class AccountController extends Controller
         defer(fn () => $notifier->orderCancelledByCustomer($order));
 
         return back()->with('ok', 'أُلغي الطلب '.$order->number);
+    }
+
+    /** @return array<string, mixed> */
+    private function healthData(Request $request, \App\Models\Customer $customer): array
+    {
+        $customer->selfProfile();
+        $profiles = $customer->healthProfiles()->with(['allergies', 'documents'])->get();
+        $current = $profiles->firstWhere('id', (int) $request->query('profile')) ?? $profiles->first();
+
+        return ['profiles' => $profiles, 'current' => $current];
     }
 }

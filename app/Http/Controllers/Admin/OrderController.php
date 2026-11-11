@@ -11,7 +11,7 @@ class OrderController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Order::withCount('items')->latest();
+        $query = Order::withCount('items')->with('healthProfile.allergies')->latest();
         if ($request->filled('status')) {
             $query->where('status', $request->query('status'));
         }
@@ -27,7 +27,21 @@ class OrderController extends Controller
 
     public function show(Order $order)
     {
-        return view('admin.orders.show', ['order' => $order->load('items')]);
+        $order->load(['items.product', 'healthProfile.allergies', 'healthProfile.documents', 'customer']);
+        $conflicts = [];
+        foreach ($order->items as $item) {
+            if ($item->product && $order->healthProfile) {
+                foreach (\App\Support\AllergyCheck::conflicts($order->healthProfile, $item->product) as $hit) {
+                    $conflicts[$item->id][] = $hit;
+                }
+            }
+        }
+
+        return view('admin.orders.show', [
+            'order' => $order,
+            'conflicts' => $conflicts,
+            'previous' => $order->customer_id ? Order::with('items')->where('customer_id', $order->customer_id)->whereKeyNot($order->id)->latest()->take(5)->get() : collect(),
+        ]);
     }
 
     public function update(Request $request, Order $order)

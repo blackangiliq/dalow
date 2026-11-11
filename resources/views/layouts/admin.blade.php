@@ -41,6 +41,9 @@
             <a href="{{ route('admin.price-alerts') }}" @class(['on' => request()->routeIs('admin.price-alerts')])>@icon('bell') تنبيهات السعر</a>
             @if ($isAdmin)<a href="{{ route('admin.coupons.index') }}" @class(['on' => request()->routeIs('admin.coupons.*')])>@icon('tag') كوبونات الخصم</a>@endif
             <a href="{{ route('admin.customers.index') }}" @class(['on' => request()->routeIs('admin.customers.*')])>@icon('user') الزبائن</a>
+            @if (\App\Support\Ui::on('health_documents') || \App\Support\Ui::on('refill_reminders') || \App\Support\Ui::on('followup'))
+                <a href="{{ route('admin.care') }}" @class(['on' => request()->routeIs('admin.care')])>@icon('heart') العناية بالزبائن @if ($pendingDocs)<span class="count num">{{ $pendingDocs }}</span>@endif</a>
+            @endif
             <a href="{{ route('admin.messages.index') }}" @class(['on' => request()->routeIs('admin.messages.*')])>@icon('chat') الرسائل <span class="count num" data-unread-count @if (! $unreadMessages) hidden @endif>{{ $unreadMessages }}</span></a>
             <span class="side__label">المنتجات</span>
             <a href="{{ route('admin.products.index') }}" @class(['on' => request()->routeIs('admin.products.*')])>@icon('pill') المنتجات</a>

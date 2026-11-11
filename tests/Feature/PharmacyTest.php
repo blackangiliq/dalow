@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\ContactMessage;
 use App\Models\Coupon;
 use App\Models\Customer;
+use App\Models\HealthDocument;
+use App\Models\RefillReminder;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductRequest;
@@ -487,6 +489,207 @@ class PharmacyTest extends TestCase
         Setting::put('ui_assure3_title', 'أدوية مضمونة');
         $this->get('/')->assertDontSee('يوصلك لباب بيتك')->assertDontSee('توصيل لكل بغداد')
             ->assertSee('واستلمه جاهزاً')->assertSee('استلام من الصيدلية')->assertSee('أدوية مضمونة');
+    }
+
+    private function registerCustomer(array $extra = []): Customer
+    {
+        $this->post('/register', $extra + ['name' => 'نور محمد', 'phone' => '07705551234', 'password' => 'secret12', 'password_confirmation' => 'secret12', 'notify_telegram' => 1]);
+
+        return Customer::where('phone', '07705551234')->firstOrFail();
+    }
+
+    public function test_registration_asks_about_allergies_and_starts_the_health_profile(): void
+    {
+        $this->get('/register')->assertSee('هل لديك حساسية من أي دواء؟');
+
+        // «نعم» بلا موافقة على حفظ المعلومات الصحية لا يكمل
+        $this->post('/register', ['name' => 'نور محمد', 'phone' => '07705551234', 'password' => 'secret12', 'password_confirmation' => 'secret12', 'allergy_answer' => 'yes', 'allergies' => 'البنسلين'])
+            ->assertSessionHasErrors('health_consent');
+
+        $response = $this->post('/register', ['name' => 'نور محمد', 'phone' => '07705551234', 'password' => 'secret12', 'password_confirmation' => 'secret12',
+            'allergy_answer' => 'yes', 'allergies' => 'البنسلين، الأسبرين ومضادات الالتهاب', 'health_consent' => 1]);
+        $response->assertRedirect(route('account', ['tab' => 'health', 'welcome' => 1]));
+
+        $customer = Customer::first();
+        $this->assertNotNull($customer->health_consent_at);
+        $this->assertEqualsCanonicalizing(['البنسلين', 'الأسبرين ومضادات الالتهاب'], $customer->selfProfile()->allergies->pluck('substance')->all());
+        $this->get(route('account', ['tab' => 'health']))->assertOk()->assertSee('البنسلين')->assertSee('أمراض مزمنة');
+
+        // يكمل ملفه
+        $profile = $customer->selfProfile();
+        $this->put(route('health.update', $profile), ['name' => 'نور محمد', 'gender' => 'female', 'pregnancy' => 'pregnant', 'birth_date' => '1995-03-01',
+            'conditions' => ['asthma'], 'current_medications' => 'Ventolin inhaler'])->assertSessionHasNoErrors();
+        $profile->refresh();
+        $this->assertSame('pregnant', $profile->pregnancy);
+        $this->assertSame(['الربو والحساسية الصدرية'], $profile->condition_labels);
+
+        // «لا توجد حساسية» يُسجل كذلك
+        $this->post('/logout');
+        $this->post('/register', ['name' => 'علي', 'phone' => '07801112223', 'password' => 'secret12', 'password_confirmation' => 'secret12', 'allergy_answer' => 'none']);
+        $this->assertTrue(Customer::where('phone', '07801112223')->first()->selfProfile()->no_known_allergies);
+    }
+
+    public function test_allergy_conflict_is_flagged_to_customer_and_pharmacist(): void
+    {
+        $this->withoutDefer();
+        $telegram = $this->fakeTelegram();
+        $customer = $this->registerCustomer(['allergy_answer' => 'yes', 'allergies' => 'بنسلين', 'health_consent' => 1]);
+        $augmentin = Product::where('name', 'like', 'Augmentin%')->first();
+        $safe = Product::where('name', 'like', 'Nexium%')->first();
+
+        // صفحة المنتج تحذّر من الدواء المتعارض فقط
+        $this->get(route('product', $augmentin))->assertSee('تنبيه حساسية')->assertSee('البنسلين ومشتقاته');
+        $this->get(route('product', $safe))->assertDontSee('تنبيه حساسية');
+
+        $this->post('/cart/add', ['product_id' => $augmentin->id]);
+        $this->post('/cart/add', ['product_id' => $safe->id]);
+        $this->get('/cart')->assertSee('حساسية مسجلة لك من بنسلين');
+
+        $form = ['customer_name' => 'نور محمد', 'phone' => '07705551234', 'area' => 'زيونة', 'address' => 'محلة 712 زقاق 5',
+            'prescription' => UploadedFile::fake()->image('rx.jpg')];
+        $this->post('/checkout', $form)->assertSessionHasErrors('allergy_ack');
+        $this->assertSame(0, Order::count());
+
+        $this->post('/checkout', $form + ['allergy_ack' => 1])->assertSessionHasNoErrors();
+        $order = Order::first();
+        $this->assertSame($customer->selfProfile()->id, $order->health_profile_id);
+        $this->assertStringContainsString('Augmentin', $order->allergy_ack);
+        $this->assertStringNotContainsString('Nexium', $order->allergy_ack);
+
+        // إشعار الموظفين فيه الحساسية والتعارض
+        $text = collect($telegram->sent)->pluck('text')->first(fn ($t) => str_contains($t, $order->number));
+        $this->assertStringContainsString('حساسية من:', $text);
+        $this->assertStringContainsString('تعارض مع الحساسية', $text);
+
+        // صفحة الطلب في اللوحة تظهر ملف المريض والتعارض
+        $this->actingAs(User::first())->get(route('admin.orders.show', $order))->assertOk()
+            ->assertSee('ملف المريض')->assertSee('يتعارض مع حساسية بنسلين')->assertSee('الملف الكامل وطلباته السابقة');
+    }
+
+    public function test_family_member_profile_is_used_for_the_order(): void
+    {
+        $customer = $this->registerCustomer(['allergy_answer' => 'none']);
+        $this->post(route('health.store'), ['name' => 'علي', 'relation' => 'child'])->assertRedirect();
+        $child = $customer->healthProfiles()->where('relation', 'child')->first();
+        $this->post(route('health.allergy', $child), ['substance' => 'Ibuprofen', 'severity' => 'severe', 'reaction' => 'ضيق نفس', 'consent' => 1])->assertSessionHasNoErrors();
+        $this->put(route('health.update', $child), ['name' => 'علي', 'birth_date' => today()->subYears(4)->format('Y-m-d')]);
+
+        $nurofen = Product::where('name', 'like', 'Brufen%')->first();
+        $this->get(route('product', $nurofen))->assertSee('لدى علي حساسية');
+        $this->post('/cart/add', ['product_id' => $nurofen->id]);
+        $this->get('/checkout')->assertSee('لمن هذا الطلب؟');
+
+        // الطلب لنفسه لا يتعارض، لابنه يتعارض
+        $form = ['customer_name' => 'نور محمد', 'phone' => '07705551234', 'area' => 'زيونة', 'address' => 'محلة 712 زقاق 5', 'health_profile_id' => $child->id];
+        $this->post('/checkout', $form)->assertSessionHasErrors('allergy_ack');
+        $this->post('/checkout', $form + ['allergy_ack' => 1])->assertSessionHasNoErrors();
+        $order = Order::first();
+        $this->assertSame($child->id, $order->health_profile_id);
+
+        $this->actingAs(User::first())->get(route('admin.orders.show', $order))->assertSee('طلب لـعلي')->assertSee('Ibuprofen')->assertSee('العمر 4 سنة');
+
+        // لا يستطيع زبون آخر تعديل ملف هذا الطفل
+        auth('customer')->logout();
+        $this->post('/register', ['name' => 'غريب', 'phone' => '07809990000', 'password' => 'secret12', 'password_confirmation' => 'secret12']);
+        $this->put(route('health.update', $child), ['name' => 'مخترق'])->assertNotFound();
+        $this->assertSame('علي', $child->fresh()->name);
+    }
+
+    public function test_customer_sends_test_results_and_pharmacist_replies(): void
+    {
+        Storage::fake('local');
+        $this->withoutDefer();
+        $telegram = $this->fakeTelegram();
+        $customer = $this->registerCustomer(['allergy_answer' => 'none']);
+        $profile = $customer->selfProfile();
+
+        $this->post(route('health.document', $profile), ['kind' => 'allergy_test', 'file' => UploadedFile::fake()->create('x.exe', 10, 'application/octet-stream'), 'consent' => 1])
+            ->assertSessionHasErrors('file');
+        $this->post(route('health.document', $profile), ['kind' => 'allergy_test', 'title' => 'فحص حساسية', 'customer_note' => 'هل أستطيع أخذ Augmentin؟',
+            'file' => UploadedFile::fake()->image('allergy.jpg'), 'consent' => 1])->assertSessionHas('ok');
+        $document = HealthDocument::first();
+        Storage::disk('local')->assertExists($document->path);
+        $this->assertStringContainsString('فحص حساسية', collect($telegram->sent)->pluck('text')->last());
+
+        // الملف لصاحبه وللوحة فقط
+        $this->get(route('health.document.file', $document))->assertOk();
+        $this->post('/logout');
+        $this->get(route('health.document.file', $document))->assertRedirect(route('customer.login'));
+        $this->post('/register', ['name' => 'غريب', 'phone' => '07809990000', 'password' => 'secret12', 'password_confirmation' => 'secret12']);
+        $this->get(route('health.document.file', $document))->assertNotFound();
+        $this->post('/logout');
+
+        $admin = User::first();
+        $this->actingAs($admin)->get(route('admin.care'))->assertOk()->assertSee('فحص حساسية')->assertSee('بانتظار قراءتك');
+        $this->actingAs($admin)->get(route('admin.care.document', $document))->assertOk();
+        $this->actingAs($admin)->put(route('admin.care.review', $document), ['pharmacist_note' => 'لا توجد حساسية من البنسلين، يمكنك أخذه.'])->assertSessionHas('ok');
+
+        $this->assertNotNull($document->fresh()->reviewed_at);
+        $this->assertStringContainsString('قرأ الصيدلاني', $customer->notifications()->latest('id')->first()->title);
+
+        // حذف الملف يحذفه من التخزين
+        auth('web')->logout();
+        $this->post('/login', ['phone' => '07705551234', 'password' => 'secret12']);
+        $this->get(route('account', ['tab' => 'health']))->assertSee('لا توجد حساسية من البنسلين');
+        $this->delete(route('health.document.destroy', $document));
+        Storage::disk('local')->assertMissing($document->path);
+    }
+
+    public function test_refill_reminder_is_sent_when_due_and_shown_to_pharmacist(): void
+    {
+        $this->withoutDefer();
+        $telegram = $this->fakeTelegram();
+        $customer = $this->registerCustomer(['allergy_answer' => 'none']);
+        $product = Product::where('name', 'like', 'Concor%')->first();
+
+        $this->post(route('health.reminder', $product), ['every_days' => 30])->assertSessionHas('ok');
+        $reminder = RefillReminder::first();
+        $this->assertSame(today()->addDays(30)->toDateString(), $reminder->next_at->toDateString());
+        $this->get(route('product', $product))->assertSee('نذكّرك به كل شهر');
+
+        $this->travel(28)->days();
+        $this->actingAs(User::first())->get(route('admin.care'))->assertSee('أدوية يحين موعدها')->assertSee($customer->name);
+        $this->travel(3)->days();
+        $this->artisan('care:remind')->assertSuccessful();
+
+        $this->assertStringContainsString('حان موعد', $customer->notifications()->latest('id')->first()->title);
+        $this->assertSame('07705551234', collect($telegram->sent)->last()['phone']);
+        $this->assertSame(today()->addDays(30)->toDateString(), $reminder->fresh()->next_at->toDateString());
+        $this->artisan('care:remind');                                   // لا يتكرر في اليوم نفسه
+        $this->assertSame(1, $customer->notifications()->where('title', 'like', 'حان موعد%')->count());
+    }
+
+    public function test_admin_sees_full_customer_profile_and_care_features_can_be_switched_off(): void
+    {
+        $customer = $this->registerCustomer(['allergy_answer' => 'yes', 'allergies' => 'سلفا', 'health_consent' => 1]);
+        $product = Product::where('requires_prescription', false)->where('stock', '>', 5)->first();
+        $this->post('/cart/add', ['product_id' => $product->id]);
+        $this->post('/checkout', ['customer_name' => 'نور محمد', 'phone' => '07705551234', 'area' => 'زيونة', 'address' => 'محلة 712 زقاق 5']);
+        $admin = User::first();
+
+        $this->actingAs($admin)->get(route('admin.customers.index'))->assertSee('حساسية: سلفا');
+        $this->actingAs($admin)->get(route('admin.customers.show', $customer))->assertOk()
+            ->assertSee('الملف الصحي')->assertSee('سلفا')->assertSee('طلباته السابقة')->assertSee($product->name);
+        $this->actingAs($admin)->put(route('admin.customers.note', $customer), ['pharmacist_note' => 'يفضّل الاتصال مساءً'])->assertSessionHas('ok');
+        // الموظف يرى الملف أيضاً لأنه يجهز الطلبات
+        $staff = User::create(['name' => 'موظف', 'email' => 'staff@aldalu.iq', 'password' => 'password12', 'role' => 'staff']);
+        $this->actingAs($staff)->get(route('admin.customers.show', $customer))->assertOk()->assertSee('يفضّل الاتصال مساءً');
+        auth('web')->logout();
+
+        // إيقاف الخصائص من «واجهة الموقع»
+        Setting::put('on_health_profile', '0');
+        Setting::put('on_refill_reminders', '0');
+        $this->get('/register')->assertDontSee('هل لديك حساسية من أي دواء؟');
+        $this->get(route('account', ['tab' => 'health']))->assertDontSee('ملفي الصحي');
+        $this->put(route('health.update', $customer->selfProfile()), ['name' => 'x'])->assertNotFound();
+        $this->post(route('health.reminder', $product), ['every_days' => 30])->assertNotFound();
+        $this->get('/')->assertDontSee('data-section="care"', false);
+
+        Setting::put('on_health_profile', '1');
+        Setting::put('on_health_documents', '0');
+        $this->post(route('health.document', $customer->selfProfile()), ['kind' => 'lab', 'file' => UploadedFile::fake()->image('a.jpg')])->assertNotFound();
+        Setting::put('on_allergy_alerts', '0');
+        $this->get(route('product', Product::where('name', 'like', 'Septrin%')->orWhere('scientific_name', 'like', '%sulfa%')->first() ?? $product))->assertDontSee('تنبيه حساسية');
     }
 
     public function test_prescription_medicine_needs_a_prescription_image(): void

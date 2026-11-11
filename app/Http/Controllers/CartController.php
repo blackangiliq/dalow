@@ -13,7 +13,7 @@ class CartController extends Controller
         $items = Cart::items();
         $subtotal = $items->sum('line');
 
-        return view('shop.cart', ['items' => $items, 'subtotal' => $subtotal] + Cart::coupon($subtotal));
+        return view('shop.cart', ['items' => $items, 'subtotal' => $subtotal, 'conflicts' => Cart::allergyConflicts($items)] + Cart::coupon($subtotal));
     }
 
     public function add(Request $request)

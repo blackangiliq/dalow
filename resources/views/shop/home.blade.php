@@ -41,6 +41,7 @@
         'featured' => $featured->isEmpty(),
         'recent' => $recent->isEmpty() || ! $on['recent'],
         'faq' => $faqs->isEmpty() || ! $on['faq'],
+        'care' => ! $on['accounts'] || ! ($on['health_profile'] || $on['refill_reminders']),
         default => false,
     })->values();
     $services = array_filter([
@@ -128,6 +129,22 @@
                 <div class="band__head"><h2>{{ $ui['recent_title'] }}</h2></div>
                 <div class="grid">
                     @foreach ($recent as $p) @include('partials.product-card', ['p' => $p]) @endforeach
+                </div>
+                @break
+
+            @case('care')
+                <div class="care">
+                    <div class="care__text">
+                        <h2>{{ $ui['care_title'] }}</h2>
+                        <p>{{ $ui['care_sub'] }}</p>
+                        <a class="btn btn--buy" href="{{ $me ? route('account', ['tab' => $on['health_profile'] ? 'health' : 'reminders']) : route('customer.register') }}" data-track="care">{{ $me ? 'افتح ملفي الصحي' : 'أنشئ ملفك مجاناً' }}</a>
+                    </div>
+                    <ul class="care__list">
+                        @if ($on['health_profile'])<li>@icon('alert') <span><b>حساسيتك محفوظة</b>ننبهك ونبه الصيدلاني إن اخترت دواءً يتعارض معها</span></li>@endif
+                        @if ($on['family_profiles'] && $on['health_profile'])<li>@icon('users') <span><b>ملف لكل فرد في عائلتك</b>أطفالك ووالداك، ولكل واحد حساسيته وأدويته</span></li>@endif
+                        @if ($on['health_documents'] && $on['health_profile'])<li>@icon('sheet') <span><b>ارسل تحاليلك ليقرأها الصيدلاني</b>فحص الحساسية أو تحليل الدم، ويصلك رده</span></li>@endif
+                        @if ($on['refill_reminders'])<li>@icon('repeat') <span><b>تذكير قبل أن ينفد دواؤك</b>لأدوية الضغط والسكري، في حسابك وعلى رقمك</span></li>@endif
+                    </ul>
                 </div>
                 @break
 

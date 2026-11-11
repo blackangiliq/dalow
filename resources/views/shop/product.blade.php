@@ -42,6 +42,16 @@
                 <div class="proof">@icon('fire') طُلب <span class="num">{{ $soldWeek }}</span> مرة هذا الأسبوع</div>
             @endif
 
+            @foreach (collect($allergyHits)->groupBy(fn ($h) => $h['profile']->id) as $hits)
+                @php $who = $hits[0]['profile']; @endphp
+                <div class="note note--bad allergy-warn" role="alert">@icon('alert')
+                    <p><strong>تنبيه حساسية: {{ $who->relation === 'self' ? 'لديك' : 'لدى '.$who->name }} حساسية مسجلة من {{ collect($hits)->pluck('substance')->unique()->implode('، ') }}.</strong>
+                    @if ($hits[0]['via']) هذا الدواء من مجموعة {{ $hits[0]['via'] }}. @endif
+                    لا تستعمله قبل سؤال {{ $site['pharmacist_label'] }}.
+                    @if ($on['consult'])<a class="more" href="{{ \App\Support\Util::consultLink($product) }}" target="_blank" rel="noopener" data-track="consult">اسألها الآن</a>@endif</p>
+                </div>
+            @endforeach
+
             <div class="price price--lg">
                 @if ($product->discount)<s>@iqd($product->old_price)</s>@endif
                 <b>@iqd($product->price)</b>
@@ -99,6 +109,22 @@
                 <div><b>عندك سؤال عن هذا المنتج؟</b><span>الجرعة، طريقة الاستعمال، أو البديل المناسب. الاستشارة مجانية.</span></div>
                 <a class="btn btn--wa" href="{{ \App\Support\Util::consultLink($product) }}" target="_blank" rel="noopener" data-track="consult">استشر {{ $site['pharmacist_label'] }}</a>
             </div>
+            @endif
+
+
+            @if ($me && $on['refill_reminders'])
+                <form method="post" action="{{ route('health.reminder', $product) }}" class="remindrow">
+                    @csrf
+                    @icon('repeat')
+                    @if ($reminder)
+                        <span>نذكّرك به {{ $reminder->interval_label }}، القادم {{ $reminder->next_at->translatedFormat('j F') }}.</span>
+                        <a class="more" href="{{ route('account', ['tab' => 'reminders']) }}">تعديل</a>
+                    @else
+                        <label for="remind_every">تأخذه باستمرار؟ ذكّرني بإعادة الشراء</label>
+                        <select id="remind_every" name="every_days" class="minisel">@foreach (\App\Models\RefillReminder::INTERVALS as $d => $l)<option value="{{ $d }}" @selected($d === 30)>{{ $l }}</option>@endforeach</select>
+                        <button class="btn btn--sm btn--ghost">ذكّرني</button>
+                    @endif
+                </form>
             @endif
 
             @if ($product->requires_prescription)

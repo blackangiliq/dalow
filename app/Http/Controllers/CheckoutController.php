@@ -29,6 +29,8 @@ class CheckoutController extends Controller
             'areas' => Util::areas(),
             'needsRx' => $items->contains(fn ($i) => $i->product->requires_prescription),
             'customer' => auth('customer')->user(),
+            'profiles' => $this->profilesForOrder(),
+            'conflicts' => Cart::allergyConflicts($items),
         ]);
     }
 
@@ -40,6 +42,7 @@ class CheckoutController extends Controller
         }
         $needsRx = $items->contains(fn ($i) => $i->product->requires_prescription);
         $data = $this->validateCustomer($request, $needsRx);
+        $data += $this->healthChoice($request, $items);
 
         $order = DB::transaction(function () use ($items, $data, $request) {
             $subtotal = 0;
@@ -90,12 +93,16 @@ class CheckoutController extends Controller
 
     public function prescriptionForm()
     {
-        return view('shop.prescription', ['areas' => Util::areas(), 'customer' => auth('customer')->user()]);
+        return view('shop.prescription', ['areas' => Util::areas(), 'customer' => auth('customer')->user(), 'profiles' => $this->profilesForOrder()]);
     }
 
     public function prescriptionStore(Request $request, StaffNotifier $notifier)
     {
         $data = $this->validateCustomer($request, true);
+        $profiles = $this->profilesForOrder();
+        if ($profiles->isNotEmpty()) {
+            $data['health_profile_id'] = ($profiles->firstWhere('id', (int) $request->input('health_profile_id')) ?? $profiles->first())->id;
+        }
         $order = Order::create($data + [
             'number' => Order::newNumber(),
             'customer_id' => auth('customer')->id(),
@@ -129,6 +136,48 @@ class CheckoutController extends Controller
         }
 
         return view('shop.track', compact('order', 'searched'));
+    }
+
+    /** @return \Illuminate\Support\Collection<int, \App\Models\HealthProfile> ملفات من يطلب لهم الزبون */
+    private function profilesForOrder()
+    {
+        $customer = auth('customer')->user();
+        if (! $customer || ! \App\Support\Ui::on('health_profile')) {
+            return collect();
+        }
+        $customer->selfProfile();
+
+        return $customer->healthProfiles()->with('allergies')->get();
+    }
+
+    /**
+     * لمن هذا الطلب؟ وإن تعارض دواء مع حساسية هذا الشخص فلا يكمل الطلب حتى يُقر الزبون بأنه يعلم،
+     * ويصل التعارض للصيدلاني ليراجعه قبل الصرف.
+     *
+     * @return array{health_profile_id?: int, allergy_ack?: string}
+     */
+    private function healthChoice(Request $request, $items): array
+    {
+        $profiles = $this->profilesForOrder();
+        if ($profiles->isEmpty()) {
+            return [];
+        }
+        $profile = $profiles->firstWhere('id', (int) $request->input('health_profile_id')) ?? $profiles->first();
+        $hits = collect(Cart::allergyConflicts($items))
+            ->map(fn ($list) => array_filter($list, fn ($h) => $h['profile']->id === $profile->id))->filter();
+        if ($hits->isEmpty()) {
+            return ['health_profile_id' => $profile->id];
+        }
+        $summary = $hits->map(function ($list, $productId) use ($items) {
+            $name = $items->firstWhere('product.id', $productId)->product->name;
+
+            return $name.' ← '.implode('، ', array_unique(array_column($list, 'substance')));
+        })->implode(' | ');
+        if (! $request->boolean('allergy_ack')) {
+            throw ValidationException::withMessages(['allergy_ack' => 'احذف الدواء المتعارض من السلة، أو ضع علامة «أعلم بذلك» ليراجعه الصيدلاني ويتصل بك قبل الصرف.']);
+        }
+
+        return ['health_profile_id' => $profile->id, 'allergy_ack' => mb_substr($summary, 0, 250)];
     }
 
     private function validateCustomer(Request $request, bool $needsRx): array

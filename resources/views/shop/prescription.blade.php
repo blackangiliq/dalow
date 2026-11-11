@@ -19,6 +19,15 @@
                 </label>
                 @error('prescription')<span class="err">{{ $message }}</span>@enderror
             </div>
+            @if ($profiles->count() > 1 && $on['family_profiles'])
+            <div class="field field--full">
+                <label for="health_profile_id">لمن هذه الوصفة؟</label>
+                <select id="health_profile_id" name="health_profile_id">
+                    @foreach ($profiles as $p)<option value="{{ $p->id }}">{{ $p->relation === 'self' ? 'لي أنا' : $p->name }}</option>@endforeach
+                </select>
+                <span class="hint">يرى الصيدلاني حساسيته وأمراضه مع الوصفة</span>
+            </div>
+            @endif
             @include('shop._customer')
         </div>
         <button class="btn" style="margin-top:20px">@icon('send') ارسل الوصفة</button>

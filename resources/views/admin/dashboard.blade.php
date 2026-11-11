@@ -24,6 +24,18 @@
     <div class="flash flash--bad">@icon('alert') <span><strong>{{ $expired }} منتج انتهت صلاحيته</strong> وأُخفي من المتجر تلقائياً. <a href="{{ route('admin.products.index', ['expiry' => 'expired']) }}" style="text-decoration:underline">راجعها واسحبها من الرفوف</a></span></div>
 @endif
 
+@if ($careDocs || $careRefills || $careFollowups)
+    <a class="carestrip" href="{{ route('admin.care') }}">
+        @icon('heart')
+        <span><b>العناية بالزبائن اليوم:</b>
+            @if ($careDocs) {{ $careDocs }} تحليل بانتظار قراءتك @endif
+            @if ($careRefills) · {{ $careRefills }} دواء يحين موعده @endif
+            @if ($careFollowups) · {{ $careFollowups }} زبون تسأل عن حاله @endif
+        </span>
+        <span class="more">افتح</span>
+    </a>
+@endif
+
 <div class="stats stats--6">
     <a class="stat stat--hot" href="{{ route('admin.orders.index', ['status' => 'new']) }}"><span>طلبات تنتظر التأكيد</span><b class="num" data-new-count>{{ $newOrders }}</b><small>اضغط لعرضها</small></a>
     <div class="stat"><span>طلبات اليوم</span><b class="num">{{ $todayOrders }}</b><small>@iqd($todaySales)</small></div>

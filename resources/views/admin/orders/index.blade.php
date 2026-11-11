@@ -28,7 +28,7 @@
             @forelse ($orders as $o)
                 <tr>
                     <td class="num" style="font-weight:600">{{ $o->number }}</td>
-                    <td>{{ $o->customer_name }}<span class="t-sub num">{{ $o->phone }}</span></td>
+                    <td>{{ $o->customer_name }}<span class="t-sub num">{{ $o->phone }}</span>@if ($o->allergy_ack)<span class="pill pill--bad">⚠ تعارض حساسية</span>@elseif ($o->healthProfile?->allergies->count())<span class="pill pill--new">لديه حساسية</span>@endif</td>
                     <td>{{ $o->area }}</td>
                     <td>{{ $o->type === 'prescription' ? 'وصفة طبية' : $o->items_count.' مادة' }}</td>
                     <td>{{ $o->type === 'prescription' && ! $o->total ? 'يحدد لاحقاً' : \App\Support\Util::money($o->total) }}</td>
